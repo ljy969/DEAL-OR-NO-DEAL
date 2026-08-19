@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deal or No Deal - 美版经典游戏</title>
+    <!-- CSS 变量与基础样式 -->
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/animations.css">
+</head>
+<body>
+    <!-- 顶部控制区：语言切换 + 主题切换 -->
+    <div class="top-controls">
+        <!-- 语言切换（中文 / English / 跟随系统） -->
+        <div class="lang-switch" id="lang-switch">
+            <button id="lang-toggle" class="lang-toggle" aria-haspopup="true" aria-expanded="false" data-i18n="lang.buttonAria" data-i18n-attr="title,aria-label" title="语言">
+                <span class="lang-switch__icon" id="lang-current-icon">中</span>
+            </button>
+            <ul class="lang-menu" id="lang-menu" role="menu" aria-label="选择语言" data-i18n="lang.menuAria" data-i18n-attr="aria-label" hidden>
+                <li role="menuitem" data-lang-value="zh" data-i18n="lang.zh">🇨🇳 中文</li>
+                <li role="menuitem" data-lang-value="en" data-i18n="lang.en">🇺🇸 English</li>
+                <li role="menuitem" data-lang-value="system" data-i18n="lang.system">🖥️ 跟随系统</li>
+            </ul>
+        </div>
+
+        <!-- 主题切换（浅色 / 深色 / 跟随系统） -->
+        <div class="theme-switch" id="theme-switch">
+            <button id="theme-toggle" class="theme-toggle" aria-haspopup="true" aria-expanded="false" data-i18n="theme.label" data-i18n-attr="title,aria-label" title="主题设置">
+                <span class="theme-switch__icon" id="theme-current-icon">🌙</span>
+            </button>
+            <ul class="theme-menu" id="theme-menu" role="menu" aria-label="选择主题" data-i18n="theme.menuAria" data-i18n-attr="aria-label" hidden>
+                <li role="menuitem" data-theme-value="light" data-i18n="theme.light">☀️ 浅色</li>
+                <li role="menuitem" data-theme-value="dark" data-i18n="theme.dark">🌙 深色</li>
+                <li role="menuitem" data-theme-value="system" data-i18n="theme.system">🖥️ 跟随系统</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 标题区域 -->
+    <header class="game-header">
+        <h1 class="game-title">DEAL OR NO DEAL</h1>
+    </header>
+
+    <!-- 主游戏区域 -->
+    <main class="game-main">
+        <!-- 左侧：低值金额面板 -->
+        <aside class="money-panel money-panel--low" id="low-values-panel" data-i18n="panel.low.aria" data-i18n-attr="aria-label">
+            <h2 class="money-panel__title" data-i18n="panel.low.title">低值金额</h2>
+            <ul class="money-list" id="low-money-list"></ul>
+        </aside>
+
+        <!-- 中央：箱子网格 -->
+        <section class="cases-area" id="cases-area" aria-label="26个箱子">
+            <div class="cases-grid" id="cases-grid"></div>
+            <div class="player-case-display" id="player-case-display" hidden>
+                <div class="player-case__label" data-i18n="player.case.label">你的箱子</div>
+                <div class="player-case__box" id="player-case-box">
+                    <span class="player-case__number" id="player-case-number"></span>
+                </div>
+            </div>
+        </section>
+
+        <!-- 右侧：高值金额面板 -->
+        <aside class="money-panel money-panel--high" id="high-values-panel" data-i18n="panel.high.aria" data-i18n-attr="aria-label">
+            <h2 class="money-panel__title" data-i18n="panel.high.title">高值金额</h2>
+            <ul class="money-list" id="high-money-list"></ul>
+        </aside>
+    </main>
+
+    <!-- 底部控制/信息区域 -->
+    <footer class="game-footer">
+        <!-- 轮次信息 -->
+        <div class="round-info" id="round-info" hidden>
+            <div class="round-info__current" id="round-current"></div>
+            <div class="round-info__target" id="round-target"></div>
+            <div class="round-info__progress" id="round-progress"></div>
+        </div>
+
+        <!-- 模态框背景遮罩 -->
+        <div class="modal-backdrop" id="modal-backdrop" hidden></div>
+
+        <!-- 银行家报价弹窗 -->
+        <div class="banker-modal" id="banker-modal" hidden role="dialog" aria-modal="true" aria-labelledby="banker-title">
+            <div class="banker-modal__content modal-content">
+                <div class="banker-modal__header">
+                    <h2 id="banker-title" data-i18n="banker.title">📞 银行家来电</h2>
+                    <div class="banker-modal__phone">☎️</div>
+                </div>
+                <div class="banker-modal__offer">
+                    <span class="banker-modal__label" data-i18n="banker.offerLabel">银行家报价</span>
+                    <span class="banker-modal__amount" id="banker-offer-amount">$0</span>
+                </div>
+                <div class="banker-modal__expected" id="banker-expected">
+                    <div class="banker-modal__expected-row">
+                        <span class="banker-modal__expected-label" data-i18n="banker.expectedLabel">你的箱子期望值</span>
+                        <span class="banker-modal__expected-value" id="banker-expected-value">$0</span>
+                    </div>
+                    <p class="banker-modal__expected-hint" data-i18n="ev.explainer"></p>
+                </div>
+                <div class="banker-modal__buttons">
+                    <button class="btn btn--deal" id="btn-deal">DEAL<br><small data-i18n="btn.deal.sub">接受报价</small></button>
+                    <button class="btn btn--no-deal" id="btn-no-deal">NO DEAL<br><small data-i18n="btn.noDeal.sub">拒绝，继续游戏</small></button>
+                </div>
+                <div class="banker-modal__haggle" id="banker-haggle">
+                    <button class="btn btn--haggle" id="btn-haggle"><span data-i18n="banker.haggle.button">🤝 讨价还价</span><br><small data-i18n="banker.haggle.sub">还价（整局一次）</small></button>
+                    <div class="banker-modal__haggle-panel" id="banker-haggle-panel" hidden>
+                        <p class="banker-modal__haggle-hint" data-i18n="banker.haggle.hint"></p>
+                        <div class="banker-modal__haggle-row">
+                            <span class="banker-modal__haggle-prefix">$</span>
+                            <input type="number" class="banker-modal__haggle-input" id="banker-haggle-input" min="1" step="1" inputmode="numeric" />
+                        </div>
+                        <div class="banker-modal__haggle-quick">
+                            <button type="button" class="btn btn--quick" data-add="0.1">+10%</button>
+                            <button type="button" class="btn btn--quick" data-add="0.25">+25%</button>
+                            <button type="button" class="btn btn--quick" data-add="0.5">+50%</button>
+                        </div>
+                        <div class="banker-modal__haggle-actions">
+                            <button type="button" class="btn btn--haggle-submit" id="btn-haggle-submit" data-i18n="banker.haggle.submit">提出还价</button>
+                            <button type="button" class="btn btn--haggle-cancel" id="btn-haggle-cancel" data-i18n="banker.haggle.cancel">取消</button>
+                        </div>
+                    </div>
+                    <p class="banker-modal__haggle-result" id="banker-haggle-result" hidden></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Switch Case 交换弹窗 -->
+        <div class="switch-modal" id="switch-modal" hidden role="dialog" aria-modal="true" aria-labelledby="switch-title">
+            <div class="switch-modal__content modal-content">
+                <h2 id="switch-title" data-i18n="switch.title">🔄 Switch Case?</h2>
+                <p class="switch-modal__text" data-i18n="switch.text">只剩下两个箱子了。你要保留自己的箱子，还是与另一个箱子交换？</p>
+                <div class="switch-modal__cases">
+                    <div class="switch-case switch-case--player">
+                        <div class="switch-case__label" data-i18n="switch.playerLabel">你的箱子</div>
+                        <div class="switch-case__box" id="switch-player-case">
+                            <span id="switch-player-case-num"></span>
+                        </div>
+                    </div>
+                    <div class="switch-case switch-case--other">
+                        <div class="switch-case__label" data-i18n="switch.otherLabel">另一个箱子</div>
+                        <div class="switch-case__box" id="switch-other-case">
+                            <span id="switch-other-case-num">?</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="switch-modal__buttons">
+                    <button class="btn btn--keep" id="btn-keep" data-i18n="btn.keep">保留原箱子</button>
+                    <button class="btn btn--switch" id="btn-switch" data-i18n="btn.switch">交换箱子</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 游戏结束结果弹窗 -->
+        <div class="result-modal" id="result-modal" hidden role="dialog" aria-modal="true" aria-labelledby="result-title">
+            <div class="result-modal__content modal-content">
+                <h2 id="result-title" data-i18n="result.title">游戏结束</h2>
+                <div class="result-modal__summary" id="result-summary"></div>
+                <div class="result-modal__details" id="result-details"></div>
+                <button class="btn btn--restart" id="btn-restart" data-i18n="btn.restart">再来一局</button>
+            </div>
+        </div>
+
+        <!-- 选择箱子阶段提示 -->
+        <div class="instruction-banner" id="instruction-banner">
+            <p data-i18n="instruction.banner">请选择一个箱子作为你的箱子（点击任意箱子）</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript（普通脚本，按依赖顺序加载，支持 file:// 直接打开） -->
+    <script src="js/i18n.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/banker.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

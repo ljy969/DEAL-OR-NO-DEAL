@@ -1,0 +1,231 @@
+/* ========================================
+   CSS 自定义属性（设计令牌）
+   定义主题色、间距、字体、动画时长等
+   支持深色/浅色模式切换
+======================================== */
+
+/* 浅色模式（默认） */
+:root,
+[data-theme="light"] {
+    /* === 色彩系统 === */
+    /* 主题主色调 - 美版节目金色/蓝色风格 */
+    --color-primary: #c9a84c;           /* 金色主色 */
+    --color-primary-dark: #b0903a;      /* 金色深色 */
+    --color-primary-light: #e8d49c;     /* 金色浅色 */
+
+    --color-secondary: #1e3a5f;         /* 深蓝色辅助色 */
+    --color-secondary-dark: #152a42;    /* 深蓝色更深 */
+    --color-secondary-light: #2d5a8a;   /* 深蓝色浅色 */
+
+    /* 语义色彩 */
+    --color-success: #2e7d32;           /* 绿色 - Deal按钮 */
+    --color-success-hover: #388e3c;
+    --color-danger: #c62828;            /* 红色 - No Deal按钮 */
+    --color-danger-hover: #d32f2f;
+    --color-warning: #f57f17;           /* 橙色 - 警告/高亮 */
+    --color-info: #0277bd;              /* 蓝色 - 信息 */
+
+    /* 箱子金额分类色彩 */
+    --color-low-value: #d32f2f;         /* 低值红色 */
+    --color-low-value-bg: #ffebee;      /* 低值背景 */
+    --color-low-value-text: #c62828;    /* 低值文字 */
+    --color-high-value: #c9a84c;        /* 高值金色 */
+    --color-high-value-bg: #fff8e1;     /* 高值背景 */
+    --color-high-value-text: #b0903a;   /* 高值文字 */
+
+    /* 箱子状态色彩 */
+    --color-case-unopened: #2c3e50;     /* 未开启箱子深蓝 */
+    --color-case-unopened-border: #34495e;
+    --color-case-opened: #95a5a6;       /* 已开启箱子灰色 */
+    --color-case-opened-border: #7f8c8d;
+    --color-case-player: #c9a84c;       /* 玩家箱子金色边框 */
+    --color-case-player-glow: rgba(201, 168, 76, 0.6); /* 玩家箱子发光 */
+
+    /* 背景与表面 */
+    --color-bg-primary: #f5f5f5;        /* 主背景 */
+    --color-bg-secondary: #ffffff;      /* 次级背景/卡片 */
+    --color-bg-tertiary: #e8e8e8;       /* 第三级背景 */
+    --color-bg-panel: #ffffff;          /* 面板背景 */
+    --color-bg-modal: #ffffff;          /* 模态框背景 */
+
+    /* 文字色彩 */
+    --color-text-primary: #1a1a1a;      /* 主要文字 */
+    --color-text-secondary: #4a4a4a;    /* 次要文字 */
+    --color-text-muted: #888888;        /* 弱化文字 */
+    --color-text-on-primary: #ffffff;   /* 主色上文字 */
+    --color-text-on-dark: #ffffff;      /* 深色背景上文字 */
+
+    /* 边框与分割线 */
+    --color-border-light: #e0e0e0;
+    --color-border-medium: #cccccc;
+    --color-border-dark: #999999;
+
+    /* 阴影 */
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+    --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.15);
+    --shadow-glow: 0 0 20px var(--color-case-player-glow);
+
+    /* === 间距系统 === */
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 16px;
+    --space-lg: 24px;
+    --space-xl: 32px;
+    --space-2xl: 48px;
+
+    /* === 字体系统 === */
+    --font-family-base: 'Segoe UI', 'Microsoft YaHei', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-family-mono: 'Consolas', 'Monaco', 'Courier New', monospace;
+    --font-family-display: 'Impact', 'Haettenschweiler', 'Arial Narrow Bold', sans-serif;
+
+    --font-size-xs: 0.75rem;    /* 12px */
+    --font-size-sm: 0.875rem;   /* 14px */
+    --font-size-base: 1rem;     /* 16px */
+    --font-size-lg: 1.125rem;   /* 18px */
+    --font-size-xl: 1.25rem;    /* 20px */
+    --font-size-2xl: 1.5rem;    /* 24px */
+    --font-size-3xl: 2rem;      /* 32px */
+    --font-size-4xl: 2.5rem;    /* 40px */
+    --font-size-5xl: 3.5rem;    /* 56px */
+
+    --font-weight-normal: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+    --font-weight-black: 900;
+
+    --line-height-tight: 1.2;
+    --line-height-normal: 1.5;
+    --line-height-relaxed: 1.75;
+
+    /* === 圆角 === */
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-full: 9999px;
+
+    /* === 过渡动画 === */
+    --transition-fast: 150ms ease;
+    --transition-normal: 250ms ease;
+    --transition-slow: 400ms ease;
+    --transition-bounce: 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    /* === Z-index 层级 === */
+    --z-dropdown: 100;
+    --z-modal-backdrop: 200;
+    --z-modal: 210;
+    --z-toast: 300;
+    --z-tooltip: 400;
+
+    /* === 布局尺寸 === */
+    --header-height: 80px;
+    --footer-height: 120px;
+    --case-size: 70px;              /* 箱子基础尺寸 */
+    --case-size-mobile: 55px;       /* 移动端箱子尺寸 */
+    --money-panel-width: 180px;     /* 金额面板宽度 */
+    --money-panel-width-mobile: 140px;
+    --max-content-width: 1400px;
+
+    /* === 浅色模式专属：标题栏与未开启箱子（保证浅色模式真正浅色）=== */
+    --color-header-bg: linear-gradient(135deg, #ffffff 0%, #f5ecd2 100%);
+    --color-header-text: var(--color-text-primary);
+    --color-title-gradient-from: var(--color-secondary-dark);
+    --color-title-gradient-to: var(--color-primary);
+    --color-title-shadow: rgba(0, 0, 0, 0.12);
+
+    --color-case-front-bg: linear-gradient(145deg, #ffffff 0%, #e3e9f1 100%);
+    --color-case-front-text: var(--color-secondary-dark);
+    --color-case-front-border: #aebfd0;
+}
+
+/* 深色模式 */
+[data-theme="dark"] {
+    /* 主题主色调保持金色/蓝色风格 */
+    --color-primary: #d4b85c;
+    --color-primary-dark: #c9a84c;
+    --color-primary-light: #e8d49c;
+
+    --color-secondary: #2d5a8a;
+    --color-secondary-dark: #1e3a5f;
+    --color-secondary-light: #3d6fa8;
+
+    --color-success: #4caf50;
+    --color-success-hover: #66bb6a;
+    --color-danger: #ef5350;
+    --color-danger-hover: #e57373;
+    --color-warning: #ffb300;
+    --color-info: #29b6f6;
+
+    --color-low-value: #ef5350;
+    --color-low-value-bg: #3e1515;
+    --color-low-value-text: #ef5350;
+    --color-high-value: #d4b85c;
+    --color-high-value-bg: #3e3515;
+    --color-high-value-text: #d4b85c;
+
+    --color-case-unopened: #1a2a3a;
+    --color-case-unopened-border: #2c3e50;
+    --color-case-opened: #4a5a6a;
+    --color-case-opened-border: #5a6a7a;
+    --color-case-player: #d4b85c;
+    --color-case-player-glow: rgba(212, 184, 92, 0.6);
+
+    --color-bg-primary: #0d1520;
+    --color-bg-secondary: #141e2e;
+    --color-bg-tertiary: #1a2a3a;
+    --color-bg-panel: #141e2e;
+    --color-bg-modal: #1a2a3a;
+
+    --color-text-primary: #f0f0f0;
+    --color-text-secondary: #c8cfd9;
+    /* 弱化文字：浅色模式沿用中性灰 #888888，但深色模式必须提亮并带冷色调，
+       否则在深蓝近黑背景(#0d1520/#141e2e/#1a2a3a)上对比度过低、灰字几乎看不清 */
+    --color-text-muted: #a6b0bd;
+    --color-text-on-primary: #0d1520;
+    --color-text-on-dark: #f0f0f0;
+
+    --color-border-light: #2c3e50;
+    --color-border-medium: #34495e;
+    --color-border-dark: #4a5a6a;
+
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+    --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.6);
+
+    /* === 深色模式专属：标题栏与未开启箱子 === */
+    --color-header-bg: linear-gradient(135deg, var(--color-secondary) 0%, var(--color-secondary-dark) 100%);
+    --color-header-text: var(--color-text-on-dark);
+    --color-title-gradient-from: #ffffff;
+    --color-title-gradient-to: var(--color-primary-light);
+    --color-title-shadow: rgba(0, 0, 0, 0.3);
+
+    --color-case-front-bg: linear-gradient(145deg, var(--color-case-unopened), #1a2530);
+    --color-case-front-text: var(--color-primary);
+    --color-case-front-border: var(--color-case-unopened-border);
+}
+
+/* 高对比度模式支持 */
+@media (prefers-contrast: high) {
+    :root {
+        --color-border-light: currentColor;
+        --color-border-medium: currentColor;
+        --shadow-sm: none;
+        --shadow-md: none;
+        --shadow-lg: none;
+        --shadow-xl: none;
+    }
+}
+
+/* 减少动画偏好 */
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --transition-fast: 0ms;
+        --transition-normal: 0ms;
+        --transition-slow: 0ms;
+        --transition-bounce: 0ms;
+    }
+}

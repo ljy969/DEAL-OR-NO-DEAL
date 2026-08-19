@@ -1,0 +1,730 @@
+/* ========================================
+   游戏主布局
+   箱子网格、信息面板、控制按钮等
+======================================== */
+
+/* ========================================
+   根布局
+======================================== */
+.game-header {
+    position: relative;
+    height: var(--header-height);
+    background: var(--color-header-bg);
+    color: var(--color-header-text);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-xs);
+    padding: var(--space-md);
+    text-align: center;
+    box-shadow: var(--shadow-lg);
+    z-index: 10;
+}
+
+.game-title {
+    font-family: var(--font-family-display);
+    font-size: var(--font-size-5xl);
+    font-weight: var(--font-weight-black);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    text-shadow: 2px 2px 4px var(--color-title-shadow);
+    background: linear-gradient(135deg, var(--color-title-gradient-from) 0%, var(--color-title-gradient-to) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.game-subtitle {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-normal);
+    opacity: 0.9;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+}
+
+.game-main {
+    flex: 1;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: var(--space-lg);
+    padding: var(--space-lg) var(--space-md);
+    max-width: var(--max-content-width);
+    width: 100%;
+    margin: 0 auto;
+}
+
+.game-footer {
+    position: relative;
+    min-height: var(--footer-height);
+    padding: var(--space-lg) var(--space-md);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-md);
+    background: var(--color-bg-secondary);
+    border-top: 1px solid var(--color-border-light);
+}
+
+/* ========================================
+   主题切换（浅色 / 深色 / 跟随系统）
+======================================== */
+/* 顶部控制区：语言切换 + 主题切换 统一固定在右上角 */
+.top-controls {
+    position: fixed;
+    top: var(--space-md);
+    right: var(--space-md);
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: var(--space-sm);
+}
+
+.theme-switch {
+    position: relative;
+}
+
+.theme-toggle {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-full);
+    background: var(--color-bg-panel);
+    border: 2px solid var(--color-border-medium);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--shadow-md);
+    transition: all var(--transition-fast);
+}
+.theme-toggle:hover { transform: scale(1.1); border-color: var(--color-primary); box-shadow: var(--shadow-lg); }
+.theme-toggle:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+
+.theme-switch__icon { font-size: var(--font-size-xl); line-height: 1; }
+
+/* 主题下拉菜单 */
+.theme-menu {
+    position: absolute;
+    top: calc(100% + var(--space-xs));
+    right: 0;
+    min-width: 148px;
+    margin: 0;
+    padding: var(--space-xs);
+    list-style: none;
+    background: var(--color-bg-panel);
+    border: 1px solid var(--color-border-medium);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+    z-index: 50;
+}
+.theme-menu li {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-primary);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    transition: background var(--transition-fast);
+}
+.theme-menu li:hover { background: var(--color-bg-tertiary); }
+.theme-menu li.is-active {
+    background: var(--color-primary);
+    color: var(--color-text-on-primary);
+}
+
+/* ========================================
+   语言切换（中文 / English / 跟随系统）
+   结构与主题切换一致，仅配色/尺寸复用主题样式
+======================================== */
+.lang-switch {
+    position: relative;
+}
+
+.lang-toggle {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-full);
+    background: var(--color-bg-panel);
+    border: 2px solid var(--color-border-medium);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--shadow-md);
+    transition: all var(--transition-fast);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text-primary);
+}
+.lang-toggle:hover { transform: scale(1.1); border-color: var(--color-primary); box-shadow: var(--shadow-lg); }
+.lang-toggle:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+
+.lang-switch__icon { font-size: var(--font-size-lg); line-height: 1; letter-spacing: 0; }
+
+/* 语言下拉菜单 */
+.lang-menu {
+    position: absolute;
+    top: calc(100% + var(--space-xs));
+    right: 0;
+    min-width: 148px;
+    margin: 0;
+    padding: var(--space-xs);
+    list-style: none;
+    background: var(--color-bg-panel);
+    border: 1px solid var(--color-border-medium);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+    z-index: 50;
+}
+.lang-menu li {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-primary);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    transition: background var(--transition-fast);
+}
+.lang-menu li:hover { background: var(--color-bg-tertiary); }
+.lang-menu li.is-active {
+    background: var(--color-primary);
+    color: var(--color-text-on-primary);
+}
+
+/* ========================================
+   金额面板（左右两侧）
+======================================== */
+.money-panel {
+    flex-shrink: 0;
+    width: var(--money-panel-width);
+    background: var(--color-bg-panel);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--color-border-light);
+    padding: var(--space-md);
+    display: flex;
+    flex-direction: column;
+    height: fit-content;
+    max-height: calc(100vh - var(--header-height) - var(--footer-height) - 2 * var(--space-lg));
+    overflow-y: auto;
+    position: sticky;
+    top: calc(var(--header-height) + var(--space-lg));
+}
+
+.money-panel__title {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-bold);
+    text-align: center;
+    padding: var(--space-sm) 0;
+    margin-bottom: var(--space-sm);
+    border-bottom: 2px solid var(--color-border-light);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.money-panel--low .money-panel__title { color: var(--color-low-value-text); border-color: var(--color-low-value); }
+.money-panel--high .money-panel__title { color: var(--color-high-value-text); border-color: var(--color-high-value); }
+
+.money-list { display: flex; flex-direction: column; gap: var(--space-xs); }
+
+.money-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-xs) var(--space-sm);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    transition: all var(--transition-fast);
+}
+
+.money-panel--low .money-item { color: var(--color-low-value-text); }
+.money-panel--high .money-item { color: var(--color-high-value-text); }
+
+.money-item__label { font-weight: var(--font-weight-bold); }
+.money-item__value { font-weight: var(--font-weight-semibold); }
+
+/* 已开启金额：灰化+划线 */
+.money-item--opened {
+    opacity: 0.4;
+    text-decoration: line-through;
+    color: var(--color-text-muted) !important;
+    background: var(--color-bg-tertiary);
+}
+.money-item--opened .money-item__label,
+.money-item--opened .money-item__value { color: inherit; }
+
+/* 深色模式：减弱透明度压暗，避免叠加在已提亮的灰字上后对比度过低、难以辨认 */
+[data-theme="dark"] .money-item--opened {
+    opacity: 0.8;
+}
+
+/* 当前轮次高亮脉冲 */
+.money-item--highlight {
+    animation: pulseHighlight 1.5s ease-in-out infinite;
+    background: var(--color-warning);
+    color: var(--color-text-on-primary) !important;
+}
+@keyframes pulseHighlight {
+    0%, 100% { background: var(--color-warning); }
+    50% { background: var(--color-primary); }
+}
+
+/* ========================================
+   箱子区域
+======================================== */
+.cases-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 0; /* 防止flex子项溢出 */
+}
+
+.cases-grid {
+    display: grid;
+    grid-template-columns: repeat(13, 1fr);
+    gap: var(--space-sm);
+    max-width: 100%;
+    width: 100%;
+    /* 将固定尺寸箱子在单元格内居中，避免溢出到右侧高值金额面板下方 */
+    justify-items: center;
+}
+
+.case {
+    /* 箱子宽度跟随列宽自适应，但不超过设计尺寸，从而网格永不溢出右侧面板 */
+    width: 100%;
+    max-width: var(--case-size);
+    /* 用宽高比保持正方形，取代固定 height，避免溢出 */
+    aspect-ratio: 1 / 1;
+    position: relative;
+    cursor: pointer;
+}
+
+/* 玩家箱子显示区域 */
+.player-case-display {
+    margin-top: var(--space-lg);
+    text-align: center;
+    /* 不再使用 slideUp，避免影响"飞行"目标定位；由箱子的到达动画提供动效 */
+}
+
+.player-case__label {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-sm);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.player-case__box {
+    width: 120px;
+    height: 120px;
+    margin: 0 auto;
+    border-radius: var(--radius-lg);
+    border: 4px solid var(--color-case-player);
+    background: var(--color-case-front-bg);
+    box-shadow: var(--shadow-lg), var(--shadow-glow);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--font-size-4xl);
+    font-weight: var(--font-weight-black);
+    color: var(--color-case-front-text);
+    font-family: var(--font-family-display);
+    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    animation: playerCasePulse 2s ease-in-out infinite;
+}
+
+.player-case__value {
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-success);
+    margin-top: var(--space-sm);
+    font-family: var(--font-family-mono);
+}
+
+/* ========================================
+   轮次信息面板
+======================================== */
+.round-info {
+    background: var(--color-bg-panel);
+    border-radius: var(--radius-lg);
+    padding: var(--space-md) var(--space-lg);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--color-border-light);
+    text-align: center;
+    animation: slideUp var(--transition-normal);
+}
+
+.round-info__current {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-primary);
+    margin-bottom: var(--space-xs);
+}
+
+.round-info__target {
+    font-size: var(--font-size-base);
+    color: var(--color-text-secondary);
+}
+
+.round-info__progress {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+    margin-top: var(--space-xs);
+}
+
+.round-info__progress span { font-weight: var(--font-weight-bold); color: var(--color-primary); }
+
+/* ========================================
+   银行家报价弹窗
+======================================== */
+.banker-modal .modal-content {
+    width: 100%;
+    max-width: 420px;
+    padding: var(--space-xl);
+    text-align: center;
+    border-top: 4px solid var(--color-primary);
+}
+
+.banker-modal__header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-md);
+    margin-bottom: var(--space-lg);
+}
+
+.banker-modal__header h2 {
+    font-size: var(--font-size-2xl);
+    color: var(--color-primary);
+    font-family: var(--font-family-display);
+    letter-spacing: 0.05em;
+}
+
+.banker-modal__phone {
+    font-size: var(--font-size-4xl);
+    animation: phoneRing 1.5s ease-in-out infinite;
+}
+
+.banker-modal__offer {
+    margin-bottom: var(--space-xl);
+    padding: var(--space-lg);
+    background: linear-gradient(135deg, var(--color-bg-tertiary), var(--color-bg-panel));
+    border-radius: var(--radius-lg);
+    border: 2px solid var(--color-primary);
+    animation: offerPulse 2s ease-in-out infinite;
+}
+@keyframes offerPulse {
+    0%, 100% { border-color: var(--color-primary); box-shadow: 0 0 0 0 rgba(201, 168, 76, 0.4); }
+    50% { border-color: var(--color-primary-light); box-shadow: 0 0 20px 5px rgba(201, 168, 76, 0.3); }
+}
+
+.banker-modal__label {
+    display: block;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: var(--space-xs);
+}
+
+.banker-modal__amount {
+    font-family: var(--font-family-display);
+    font-size: var(--font-size-5xl);
+    font-weight: var(--font-weight-black);
+    color: var(--color-primary);
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+}
+
+.banker-modal__buttons {
+    display: flex;
+    gap: var(--space-md);
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.banker-modal__buttons .btn {
+    min-width: 140px;
+    padding: var(--space-md) var(--space-xl);
+    font-size: var(--font-size-lg);
+}
+
+.banker-modal__buttons .btn small {
+    display: block;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-normal);
+    opacity: 0.9;
+    margin-top: var(--space-xs);
+}
+
+/* ========================================
+   Switch Case 交换弹窗
+======================================== */
+.switch-modal .modal-content {
+    width: 100%;
+    max-width: 480px;
+    padding: var(--space-xl);
+    text-align: center;
+    border-top: 4px solid var(--color-warning);
+}
+
+.switch-modal__text {
+    font-size: var(--font-size-lg);
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-xl);
+    line-height: var(--line-height-relaxed);
+}
+
+.switch-modal__cases {
+    display: flex;
+    gap: var(--space-xl);
+    justify-content: center;
+    margin-bottom: var(--space-xl);
+    flex-wrap: wrap;
+}
+
+.switch-case {
+    flex: 1;
+    min-width: 160px;
+    max-width: 200px;
+}
+
+.switch-case__label {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: var(--space-sm);
+}
+
+.switch-case__box {
+    width: 140px;
+    height: 140px;
+    margin: 0 auto;
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--font-size-4xl);
+    font-weight: var(--font-weight-black);
+    font-family: var(--font-family-display);
+    color: var(--color-case-front-text);
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    transition: all var(--transition-normal);
+}
+
+.switch-case--player .switch-case__box {
+    border: 4px solid var(--color-case-player);
+    background: var(--color-case-front-bg);
+    box-shadow: var(--shadow-lg), var(--shadow-glow);
+    animation: playerCasePulse 2s ease-in-out infinite;
+}
+
+.switch-case--other .switch-case__box {
+    border: 4px solid var(--color-border-medium);
+    background: var(--color-case-front-bg);
+    box-shadow: var(--shadow-md);
+}
+.switch-case--other .switch-case__box:hover {
+    border-color: var(--color-primary);
+    transform: scale(1.02);
+    box-shadow: var(--shadow-lg);
+}
+
+.switch-modal__buttons {
+    display: flex;
+    gap: var(--space-md);
+    justify-content: center;
+    flex-wrap: wrap;
+}
+.switch-modal__buttons .btn { min-width: 140px; }
+
+/* ========================================
+   结果弹窗
+======================================== */
+.result-modal .modal-content {
+    width: 100%;
+    max-width: 500px;
+    padding: var(--space-xl);
+    text-align: center;
+    border-top: 4px solid var(--color-success);
+}
+
+.result-modal__summary {
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+    margin-bottom: var(--space-lg);
+    padding: var(--space-lg);
+    background: var(--color-bg-tertiary);
+    border-radius: var(--radius-lg);
+}
+
+.result-modal__details {
+    font-size: var(--font-size-lg);
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-xl);
+    line-height: var(--line-height-relaxed);
+}
+
+.result-modal__details .highlight {
+    color: var(--color-primary);
+    font-weight: var(--font-weight-bold);
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-xl);
+}
+
+/* ========================================
+   指示横幅（选择箱子阶段）
+======================================== */
+.instruction-banner {
+    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+    color: var(--color-text-on-primary);
+    padding: var(--space-md) var(--space-xl);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    text-align: center;
+    box-shadow: var(--shadow-lg);
+    animation: pulse 2s ease-in-out infinite;
+    white-space: nowrap;
+}
+
+/* ========================================
+   响应式布局
+======================================== */
+@media (max-width: 1200px) {
+    :root { --case-size: 60px; --money-panel-width: 160px; }
+    .game-title { font-size: var(--font-size-4xl); }
+    .banker-modal__amount { font-size: var(--font-size-4xl); }
+    .player-case__box { width: 100px; height: 100px; font-size: var(--font-size-3xl); }
+    .switch-case__box { width: 120px; height: 120px; font-size: var(--font-size-3xl); }
+}
+
+@media (max-width: 900px) {
+    .game-main { flex-direction: column; align-items: stretch; }
+    .money-panel {
+        width: 100%;
+        max-height: none;
+        position: static;
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    .money-panel__title { display: none; }
+    .money-list { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: var(--space-xs); width: 100%; }
+    .money-item { padding: var(--space-xs) var(--space-sm); font-size: var(--font-size-xs); }
+    .cases-grid { grid-template-columns: repeat(13, 1fr); gap: var(--space-xs); }
+    :root { --case-size: 50px; }
+}
+
+@media (max-width: 600px) {
+    :root {
+        --case-size: 42px;
+        --font-size-5xl: 2.5rem;
+        --font-size-4xl: 2rem;
+        --font-size-3xl: 1.5rem;
+    }
+    .game-header { height: auto; padding: var(--space-md) var(--space-sm); }
+    .game-title { font-size: var(--font-size-3xl); }
+    .game-subtitle { font-size: var(--font-size-sm); }
+    .cases-grid { grid-template-columns: repeat(7, 1fr); }
+    .case { font-size: var(--font-size-lg); }
+    .banker-modal .modal-content,
+    .switch-modal .modal-content,
+    .result-modal .modal-content { padding: var(--space-lg); margin: var(--space-md); }
+    .banker-modal__amount { font-size: var(--font-size-3xl); }
+    .banker-modal__buttons .btn,
+    .switch-modal__buttons .btn { min-width: 120px; padding: var(--space-sm) var(--space-md); font-size: var(--font-size-base); }
+    .banker-modal__buttons .btn small { display: none; }
+    .player-case__box { width: 90px; height: 90px; font-size: var(--font-size-2xl); }
+    .switch-case__box { width: 100px; height: 100px; font-size: var(--font-size-2xl); }
+    .instruction-banner { font-size: var(--font-size-base); padding: var(--space-sm) var(--space-md); }
+}
+
+/* 打印样式 */
+@media print {
+    .theme-toggle, .banker-modal, .switch-modal, .result-modal, .instruction-banner,
+    .btn-deal, .btn-no-deal, .btn-keep, .btn-switch { display: none !important; }
+    .case { cursor: default; transform: none !important; }
+}
+
+/* ========================================
+   银行家报价弹窗：期望值参考（含白话解释）
+   ======================================== */
+.banker-modal__expected {
+    margin-top: var(--space-md);
+    padding: var(--space-sm) var(--space-md);
+    background: var(--color-bg-tertiary);
+    border: 1px dashed var(--color-border-medium);
+    border-radius: var(--radius-md);
+    text-align: left;
+}
+.banker-modal__expected-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-sm);
+}
+.banker-modal__expected-label {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+}
+.banker-modal__expected-value {
+    font-size: 1.5rem;
+    font-weight: var(--font-weight-bold);
+    color: var(--color-primary);
+}
+.banker-modal__expected-hint {
+    margin: var(--space-xs) 0 0;
+    font-size: var(--font-size-sm);
+    line-height: var(--line-height-normal);
+    color: var(--color-text-muted);
+}
+
+/* ========================================
+   结算弹窗：期望值说明
+   ======================================== */
+.result-ev {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    margin: var(--space-sm) 0;
+    padding: var(--space-xs) var(--space-sm);
+    background: var(--color-bg-tertiary);
+    border-radius: var(--radius-sm);
+}
+.result-ev__label {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+}
+.result-ev__value {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-primary);
+}
+.result-ev__hint {
+    margin: 0 0 var(--space-sm);
+    font-size: var(--font-size-sm);
+    line-height: var(--line-height-normal);
+    color: var(--color-text-muted);
+}
