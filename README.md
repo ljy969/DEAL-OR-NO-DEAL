@@ -332,5 +332,4 @@ step through the game programmatically.
 
 ## License
 
-This is a fan-made, educational recreation of the Deal or No Deal format. No
-external assets, libraries, or network calls are used.
+This project is licensed under the [MIT License](LICENSE).
