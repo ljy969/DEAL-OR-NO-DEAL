@@ -311,5 +311,4 @@ playSound('ring' | 'open' | 'deal')），**不需要任何音频文件**。Audio
 
 ## 许可证
 
-这是一个粉丝向的、用于学习目的的《Deal or No Deal》复刻作品。不含任何外部资源、
-第三方库或网络请求。
+本项目基于 [MIT 许可证](LICENSE) 开源。
