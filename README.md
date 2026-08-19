@@ -24,6 +24,7 @@ modern browser (including from the file:// protocol) and start playing.
 - [Browser Support](#browser-support)
 - [Debug API](#debug-api)
 - [License](#License)
+- [Star History](#star-history)
 
 ## Overview
 
