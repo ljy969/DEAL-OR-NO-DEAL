@@ -40,7 +40,7 @@
 
     <!-- 标题区域 -->
     <header class="game-header">
-        <h1 class="game-title">DEAL OR NO DEAL</h1>
+        <h1 class="game-title" id="game-title" title="彩蛋：连续点击 5 次解锁开发者选项">DEAL OR NO DEAL</h1>
     </header>
 
     <!-- 主游戏区域 -->
@@ -160,6 +160,21 @@
                 <div class="result-modal__summary" id="result-summary"></div>
                 <div class="result-modal__details" id="result-details"></div>
                 <button class="btn btn--restart" id="btn-restart" data-i18n="btn.restart">再来一局</button>
+            </div>
+        </div>
+
+        <!-- 开发者选项弹窗（彩蛋：连续点击标题 5 次解锁） -->
+        <div class="dev-modal" id="dev-modal" hidden role="dialog" aria-modal="true" aria-labelledby="dev-title">
+            <div class="dev-modal__content modal-content">
+                <h2 id="dev-title" data-i18n="dev.title">🛠 开发者选项</h2>
+                <p class="dev-modal__hint" data-i18n="dev.hint">仅供调试：查看本局箱子的真实金额（原本对玩家隐藏）。</p>
+                <div class="dev-modal__actions">
+                    <button class="btn btn--dev" id="btn-dev-all" data-i18n="dev.all">💰 查看所有箱子金额</button>
+                    <button class="btn btn--dev" id="btn-dev-remaining" data-i18n="dev.remaining">📦 查看剩余箱子金额</button>
+                    <button class="btn btn--dev" id="btn-dev-mine" data-i18n="dev.mine">🔓 查看我的箱子金额</button>
+                </div>
+                <div class="dev-modal__result" id="dev-result" hidden></div>
+                <button class="btn btn--restart dev-modal__close" id="btn-dev-close" data-i18n="dev.close">关闭</button>
             </div>
         </div>
 

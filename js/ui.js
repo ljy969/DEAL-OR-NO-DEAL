@@ -64,6 +64,16 @@ function cacheElements() {
     elements.langToggle = document.getElementById('lang-toggle');
     elements.langMenu = document.getElementById('lang-menu');
     elements.langCurrentIcon = document.getElementById('lang-current-icon');
+
+    // 开发者选项（彩蛋）相关元素
+    elements.gameTitle = document.getElementById('game-title');
+    elements.devModal = document.getElementById('dev-modal');
+    elements.devModalContent = elements.devModal ? elements.devModal.querySelector('.modal-content') : null;
+    elements.btnDevAll = document.getElementById('btn-dev-all');
+    elements.btnDevRemaining = document.getElementById('btn-dev-remaining');
+    elements.btnDevMine = document.getElementById('btn-dev-mine');
+    elements.btnDevClose = document.getElementById('btn-dev-close');
+    elements.devResult = document.getElementById('dev-result');
 }
 
 // 期望值白话解释统一通过 i18n 的 'ev.explainer' 取词（见 buildResultContent 与 index.html 的 data-i18n）
@@ -784,6 +794,194 @@ function playSound(type) {
     }
 }
 
+
+// ========================================
+// 开发者选项（彩蛋：连续点击标题 5 次解锁）
+// ========================================
+
+// 标题连续点击计数：两次点击间隔超过阈值即清零
+let titleClickCount = 0;
+let titleClickTimer = null;
+const TITLE_CLICK_THRESHOLD = 5;      // 需连续点击的次数
+const TITLE_CLICK_RESET_MS = 2000;    // 相邻两次点击的最大间隔（毫秒）
+
+/** 处理标题栏连续点击：累计满 5 次即弹出开发者选项 */
+function handleTitleClick() {
+    titleClickCount++;
+    if (titleClickTimer) clearTimeout(titleClickTimer);
+    titleClickTimer = setTimeout(function () { titleClickCount = 0; }, TITLE_CLICK_RESET_MS);
+    if (titleClickCount >= TITLE_CLICK_THRESHOLD) {
+        titleClickCount = 0;
+        if (titleClickTimer) clearTimeout(titleClickTimer);
+        showDevOptions();
+    }
+}
+
+/** 是否还有其它重要弹窗处于打开状态（避免关闭开发者选项时误关背景遮罩） */
+function _anyOtherModalOpen() {
+    return !elements.bankerModal.hidden ||
+           !elements.switchModal.hidden ||
+           !elements.resultModal.hidden;
+}
+
+/** 显示开发者选项弹窗 */
+function showDevOptions() {
+    if (elements.devResult) {
+        elements.devResult.innerHTML = '';
+        elements.devResult.hidden = true;
+        elements.devResult.classList.remove('dev-modal__result--show');
+    }
+    elements.modalBackdrop.hidden = false;
+    elements.modalBackdrop.classList.add('modal-backdrop-enter');
+    elements.devModal.hidden = false;
+    elements.devModalContent.classList.add('modal-enter');
+}
+
+/** 隐藏开发者选项弹窗 */
+function hideDevOptions() {
+    elements.devModalContent.classList.add('modal-exit');
+    elements.devModalContent.classList.remove('modal-enter');
+    if (!_anyOtherModalOpen()) {
+        elements.modalBackdrop.classList.add('modal-backdrop-exit');
+        elements.modalBackdrop.classList.remove('modal-backdrop-enter');
+    }
+    setTimeout(function () {
+        elements.devModal.hidden = true;
+        elements.devModalContent.classList.remove('modal-exit');
+        if (!_anyOtherModalOpen()) {
+            elements.modalBackdrop.hidden = true;
+            elements.modalBackdrop.classList.remove('modal-backdrop-exit');
+        }
+    }, 250);
+}
+
+/** 在弹窗内渲染全部 26 个箱子的金额（玩家箱子高亮） */
+function renderDevCaseList(state) {
+    const result = elements.devResult;
+    if (!result) return;
+    result.hidden = false;
+
+    const items = [];
+    for (let num = 1; num <= 26; num++) {
+        const value = state.caseAssignments.get(num);
+        if (value == null) continue;
+        const cls = getValueClass(value);
+        const isPlayer = (state.playerCaseNumber === num);
+        items.push(
+            '<div class="dev-case-item dev-case-item--' + cls + (isPlayer ? ' dev-case-item--player' : '') + '">' +
+                '<span class="dev-case-item__num">' + num + (isPlayer ? ' ★' : '') + '</span>' +
+                '<span class="dev-case-item__value">' + formatCurrency(value) + '</span>' +
+            '</div>'
+        );
+    }
+    result.innerHTML = '<div class="dev-case-grid">' + items.join('') + '</div>';
+    void result.offsetWidth;
+    result.classList.add('dev-modal__result--show');
+}
+
+/** 一键查看所有箱子的金额 */
+function devRevealAllCases() {
+    const state = StateManager.getState();
+
+    // 只在弹窗列表里汇总全部 26 个箱子的真实金额（玩家箱子高亮）。
+    // 开发者查看是“只读”的：不改动棋盘，也不揭示侧栏「你的箱子」，
+    // 否则关闭弹窗后金额会一直残留在箱子上，破坏游戏隐藏性。
+    renderDevCaseList(state);
+    if (elements.devResult) {
+        const hint = document.createElement('p');
+        hint.className = 'dev-modal__msg';
+        hint.textContent = t('dev.allDone');
+        elements.devResult.insertBefore(hint, elements.devResult.firstChild);
+    }
+}
+
+/** 在弹窗内只渲染玩家自己的箱子（查看“我的箱子”时用，不列出全部） */
+function renderDevPlayerCase(state) {
+    const result = elements.devResult;
+    if (!result) return;
+    result.hidden = false;
+
+    const num = state.playerCaseNumber;
+    const value = state.playerCaseValue;
+    const cls = getValueClass(value);
+    const item =
+        '<div class="dev-case-item dev-case-item--' + cls + ' dev-case-item--player">' +
+            '<span class="dev-case-item__num">' + num + ' ★</span>' +
+            '<span class="dev-case-item__value">' + formatCurrency(value) + '</span>' +
+        '</div>';
+    result.innerHTML = '<div class="dev-case-grid">' + item + '</div>';
+    void result.offsetWidth;
+    result.classList.add('dev-modal__result--show');
+}
+
+/** 查看自己箱子的金额（只显示自己的箱子，不显示全部） */
+function devRevealPlayerCase() {
+    const state = StateManager.getState();
+
+    if (!state.playerCaseNumber || state.playerCaseValue == null) {
+        if (elements.devResult) {
+            elements.devResult.hidden = false;
+            elements.devResult.innerHTML = '<p class="dev-modal__msg dev-modal__msg--warn">' + t('dev.noCase') + '</p>';
+        }
+        return;
+    }
+
+    const pv = state.playerCaseValue;
+
+    // 开发者查看是“只读”的：只在弹窗里渲染“我的箱子”，
+    // 不揭示侧栏「你的箱子」盒子，避免关闭弹窗后金额残留在箱子上。
+    renderDevPlayerCase(state);
+    if (elements.devResult) {
+        const msg = document.createElement('p');
+        msg.className = 'dev-modal__msg';
+        msg.textContent = t('dev.mineResult', { num: state.playerCaseNumber, value: formatCurrency(pv) });
+        elements.devResult.insertBefore(msg, elements.devResult.firstChild);
+    }
+}
+
+/** 在弹窗内只渲染“尚未开启”的箱子（即还在局中、对玩家隐藏的金额）。
+ *  已开箱的会被自动排除；玩家的箱子仍未开启，因此仍算“剩余”并带 ★ 高亮。 */
+function renderDevRemainingList(state) {
+    const result = elements.devResult;
+    if (!result) return;
+    result.hidden = false;
+
+    const opened = state.openedCases; // 已开箱的编号集合
+    const items = [];
+    for (let num = 1; num <= 26; num++) {
+        if (opened.has(num)) continue; // 已开箱：跳过
+        const value = state.caseAssignments.get(num);
+        if (value == null) continue;
+        const cls = getValueClass(value);
+        const isPlayer = (state.playerCaseNumber === num);
+        items.push(
+            '<div class="dev-case-item dev-case-item--' + cls + (isPlayer ? ' dev-case-item--player' : '') + '">' +
+                '<span class="dev-case-item__num">' + num + (isPlayer ? ' ★' : '') + '</span>' +
+                '<span class="dev-case-item__value">' + formatCurrency(value) + '</span>' +
+            '</div>'
+        );
+    }
+    result.innerHTML = '<div class="dev-case-grid">' + items.join('') + '</div>';
+    void result.offsetWidth;
+    result.classList.add('dev-modal__result--show');
+}
+
+/** 查看“剩余”（尚未开启）的所有箱子金额 */
+function devRevealRemainingCases() {
+    const state = StateManager.getState();
+
+    // 开发者查看是“只读”的：只在弹窗里汇总剩余的箱子金额，不改动棋盘，
+    // 也不揭示侧栏「你的箱子」，避免关闭弹窗后金额残留在箱子上、破坏隐藏性。
+    renderDevRemainingList(state);
+    if (elements.devResult) {
+        const remainingCount = 26 - state.openedCases.size;
+        const hint = document.createElement('p');
+        hint.className = 'dev-modal__msg';
+        hint.textContent = t('dev.remainingDone', { count: remainingCount });
+        elements.devResult.insertBefore(hint, elements.devResult.firstChild);
+    }
+}
+
 /**
  * 绑定全局事件监听器
  * @param {object} handlers - 事件处理函数对象
@@ -903,6 +1101,23 @@ function bindEvents(handlers) {
 
     // 重新开始按钮
     elements.btnRestart.addEventListener('click', () => handlers.onRestart());
+
+    // 开发者选项（彩蛋）：连续点击标题 5 次解锁
+    if (elements.gameTitle) {
+        elements.gameTitle.addEventListener('click', handleTitleClick);
+    }
+    if (elements.btnDevAll) {
+        elements.btnDevAll.addEventListener('click', () => devRevealAllCases());
+    }
+    if (elements.btnDevRemaining) {
+        elements.btnDevRemaining.addEventListener('click', () => devRevealRemainingCases());
+    }
+    if (elements.btnDevMine) {
+        elements.btnDevMine.addEventListener('click', () => devRevealPlayerCase());
+    }
+    if (elements.btnDevClose) {
+        elements.btnDevClose.addEventListener('click', () => hideDevOptions());
+    }
 
     // 主题切换：点击按钮展开/收起菜单
     if (elements.themeToggle) {
@@ -1093,5 +1308,11 @@ const UI = {
     hideHagglePanel,
     getHaggleInputValue,
     setOfferDisplay,
-    showHaggleResult
+    showHaggleResult,
+    showDevOptions,
+    hideDevOptions,
+    handleTitleClick,
+    devRevealAllCases,
+    devRevealRemainingCases,
+    devRevealPlayerCase
 };

@@ -33,6 +33,12 @@
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+}
+.game-title:active {
+    transform: scale(0.98);
 }
 
 .game-subtitle {
@@ -628,6 +634,104 @@
 /* ========================================
    响应式布局
 ======================================== */
+/* ========================================
+   开发者选项弹窗（彩蛋：连续点击标题 5 次解锁）
+======================================== */
+.dev-modal__content {
+    width: min(580px, 92vw);
+    padding: var(--space-lg);
+    text-align: center;
+}
+.dev-modal__content h2 {
+    margin-bottom: var(--space-xs);
+}
+.dev-modal__hint {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+    margin-bottom: var(--space-md);
+}
+.dev-modal__actions {
+    display: flex;
+    gap: var(--space-sm);
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: var(--space-md);
+}
+.dev-modal__actions .btn {
+    flex: 1 1 auto;
+    min-width: 200px;
+}
+.btn--dev {
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border-medium);
+}
+.btn--dev:hover:not(:disabled) {
+    background: var(--color-bg-panel);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    transform: translateY(-1px);
+}
+.dev-modal__result {
+    margin-top: var(--space-sm);
+    opacity: 0;
+    transform: translateY(8px);
+}
+.dev-modal__result--show {
+    animation: devFadeIn 0.35s ease forwards;
+}
+@keyframes devFadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.dev-modal__msg {
+    margin: var(--space-xs) 0 var(--space-sm);
+    font-size: var(--font-size-base);
+    color: var(--color-text-primary);
+}
+.dev-modal__msg--warn {
+    color: var(--color-danger);
+}
+.dev-case-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+    gap: var(--space-xs);
+    margin-top: var(--space-sm);
+}
+.dev-case-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--space-xs) var(--space-sm);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border-medium);
+    background: var(--color-bg-tertiary);
+}
+.dev-case-item--low {
+    color: var(--color-low-value-text);
+    border-color: var(--color-low-value);
+}
+.dev-case-item--high {
+    color: var(--color-high-value-text);
+    border-color: var(--color-high-value);
+}
+.dev-case-item--player {
+    outline: 2px solid var(--color-primary);
+    box-shadow: 0 0 0 2px var(--color-primary);
+    background: var(--color-bg-panel);
+}
+.dev-case-item__num {
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-sm);
+}
+.dev-case-item__value {
+    font-size: var(--font-size-base);
+    font-family: var(--font-family-mono);
+}
+.dev-modal__close {
+    margin-top: var(--space-md);
+}
+
 @media (max-width: 1200px) {
     :root { --case-size: 60px; --money-panel-width: 160px; }
     .game-title { font-size: var(--font-size-4xl); }

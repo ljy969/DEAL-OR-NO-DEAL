@@ -116,7 +116,19 @@ const I18N = {
         'banker.haggle.accepted': '🤝 银行家接受了你的还价 {amount}，游戏结束！',
         'banker.haggle.rejected': '🙅 银行家拒绝了还价，交易取消，你只能继续游戏（原报价 {amount} 已作废）。',
         'banker.haggle.invalid': '请输入一个有效的金额（大于 0）。',
-        'banker.haggle.used': '本局还价机会已用完'
+        'banker.haggle.used': '本局还价机会已用完',
+
+        // 开发者选项（彩蛋：连续点击标题 5 次解锁）
+        'dev.title': '🛠 开发者选项',
+        'dev.hint': '仅供调试：查看本局箱子的真实金额（原本对玩家隐藏）。',
+        'dev.all': '💰 查看所有箱子金额',
+        'dev.remaining': '📦 查看剩余箱子金额',
+        'dev.mine': '🔓 查看我的箱子金额',
+        'dev.close': '关闭',
+        'dev.remainingDone': '已在下方列出尚未开启的 {count} 个箱子（★ 为你的箱子）。',
+        'dev.noCase': '你还没有选择自己的箱子（请先在游戏中选一个）。',
+        'dev.mineResult': '你的箱子（{num} 号）里是 {value}。',
+        'dev.allDone': '已在下方列出全部 26 个箱子的金额。'
     },
 
     en: {
@@ -210,7 +222,19 @@ const I18N = {
         'banker.haggle.accepted': '🤝 The banker accepted your counter: {amount}! Game over.',
         'banker.haggle.rejected': '🙅 The banker rejected your counter. The deal is off — you must continue (offer {amount} is void).',
         'banker.haggle.invalid': 'Please enter a valid amount (greater than 0).',
-        'banker.haggle.used': 'No haggle chances left this game'
+        'banker.haggle.used': 'No haggle chances left this game',
+
+        // Developer Options (easter egg: click the title 5 times)
+        'dev.title': '🛠 Developer Options',
+        'dev.hint': "Debug only: reveal this game's real case amounts (normally hidden from the player).",
+        'dev.all': '💰 Reveal All Cases',
+        'dev.remaining': '📦 Reveal Remaining Cases',
+        'dev.mine': '🔓 Reveal My Case',
+        'dev.close': 'Close',
+        'dev.remainingDone': 'Lists the {count} still-unopened cases below (★ = your case).',
+        'dev.noCase': "You haven't picked your case yet (choose one in the game first).",
+        'dev.mineResult': 'Your case (#{num}) contains {value}.',
+        'dev.allDone': 'All 26 cases are listed below.'
     }
 };
 
