@@ -271,6 +271,9 @@
 .money-item--opened .money-item__label,
 .money-item--opened .money-item__value { color: inherit; }
 
+/* 说明：本项目刻意“不标出哪个金额是你的箱子”以保密（renderMoneyPanels 只标已开箱），
+   因此从不给金额项添加 .money-item--player 类，相关高亮样式已移除，避免死代码与意图冲突。 */
+
 /* 深色模式：减弱透明度压暗，避免叠加在已提亮的灰字上后对比度过低、难以辨认 */
 [data-theme="dark"] .money-item--opened {
     opacity: 0.8;
@@ -317,6 +320,19 @@
     aspect-ratio: 1 / 1;
     position: relative;
     cursor: pointer;
+}
+
+/* 未开启箱子的标记态（翻面动画本身由 .case--flipping / .case--opened 驱动，
+   此规则仅作语义化占位，保证该类在 CSS 中存在，避免 JS 增删“幽灵类” */
+.case--unopened {
+    cursor: pointer;
+}
+
+/* 玩家箱子被移出中央网格后留下的占位格：占据原编号位置但不可见，避免网格末端出现空洞 */
+.case--placeholder {
+    visibility: hidden;
+    pointer-events: none;
+    cursor: default;
 }
 
 /* 玩家箱子显示区域 */

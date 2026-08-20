@@ -12,6 +12,7 @@ modern browser (including from the file:// protocol) and start playing.
 - [Overview](#overview)
 - [Features](#features)
 - [How to Play](#how-to-play)
+- [Screenshots](#screenshots)
 - [How to Run](#how-to-run)
 - [Project Structure](#project-structure)
 - [Architecture and How It Works](#architecture-and-how-it-works)
@@ -43,7 +44,7 @@ This project reproduces the show's tension with:
 - A once-per-game **Haggle** counter-offer mini-mechanic.
 - A live **Expected Value** read-out with a plain-language explanation.
 - A polished, animated UI (3D case flips, a "fly-to-your-case" selection
-  animation, phone-ring drama, sparkles, modal transitions).
+  animation, phone-ring drama, and modal transitions).
 - Full **Light / Dark / System** theming and **Chinese / English / System**
   localization.
 - Screen-reader and keyboard support, plus prefers-reduced-motion and
@@ -51,8 +52,9 @@ This project reproduces the show's tension with:
 
 ## Features
 
-- **Gameplay:** 26 cases, 9 rounds (6/5/4/3/2/1/1/1/1 cases opened per round),
-  Banker offers every round, final Switch-Case decision.
+- **Gameplay:** 26 cases, 9 opening rounds (6/5/4/3/2/1/1/1/1 cases opened per
+  round), a Banker offer after each of the first 8 rounds, then a final
+  Switch-Case decision.
 - **Banker AI:** stage-based percentage of EV, triangular-random distribution,
   plus/minus 5-12% volatility, bait offers after 3 consecutive rejections,
   special handling for "all-low" and "million + only-low" boards.
@@ -64,8 +66,8 @@ This project reproduces the show's tension with:
 - **i18n:** Chinese, English, or follow System; all UI strings, Banker
   commentary, and dynamic text localized.
 - **Animations:** 3D case flip, selection fly-to-player, phone ring, offer
-  count-up, result reveal, player-case glow, case swap, sparkles; auto-degrades
-  on reduced-motion.
+  count-up, result reveal, player-case glow, case swap, and modal transitions;
+  auto-degrades on reduced-motion.
 - **Audio:** synthesized sound effects (ring / open / deal) via the Web Audio
   API - no audio files needed.
 - **Accessibility:** ARIA roles/labels, keyboard navigation, visible focus
@@ -94,6 +96,40 @@ This project reproduces the show's tension with:
 
 > **Tip:** An offer *above* the shown Expected Value is statistically a "win".
 > The Banker's EV is computed over **all unopened cases, including your own**.
+>
+> **Note:** The Banker makes an offer after each of the first eight opening
+> rounds. After the ninth (final) opening round there is no further offer - the
+> game goes straight to the Switch-Case finale.
+
+## Screenshots
+
+The game ships with a faithful US-style UI, full **Light / Dark** theming, and
+**Chinese / English** localization. The four key screens below are shown in
+English (Light mode):
+
+| Main interface | A Call from the Banker |
+| --- | --- |
+| ![Main interface](screenshots/main-en.png) | ![A Call from the Banker](screenshots/banker-en.png) |
+
+| Swapping Boxes | Game Over |
+| --- | --- |
+| ![Swapping Boxes](screenshots/swap-en.png) | ![Game Over](screenshots/gameover-en.png) |
+
+- **Main interface** – 26 cases, the low/high value panels, your case, round
+  info, and the instruction banner.
+- **A Call from the Banker** – the Banker's offer, your case Expected Value,
+  the commentary, and the DEAL / NO DEAL / Haggle choices.
+- **Swapping Boxes** – the final two-case decision (Keep or Switch).
+- **Game Over** – the reveal, your winnings vs. the Expected Value, and the stats.
+
+The same screens are also available in **Dark mode** (shown here in English):
+
+| Light mode | Dark mode |
+| --- | --- |
+| ![Light mode](screenshots/light-en.png) | ![Dark mode](screenshots/dark-en.png) |
+
+Chinese-localized versions of every screen are included in the
+[`screenshots/`](screenshots/) folder as well.
 
 ## How to Run
 
@@ -187,7 +223,7 @@ The state object (in state.js) tracks:
                           v
                 SWITCH CASE (keep / switch) --> GAME OVER (reveal)
 
-Rounds open **6, 5, 4, 3, 2, 1, 1, 1, 1** other cases (25 total), leaving the
+Rounds open **6, 5, 4, 3, 2, 1, 1, 1, 1** other cases (24 total), leaving the
 player's case plus exactly one other case for the Switch-Case finale.
 
 ### Expected Value
@@ -218,8 +254,9 @@ Implemented in calculateBankerOffer() (banker.js):
      sub-$1,000 ("million or nothing"), the offer is discounted to **85%**.
 7. **Sanity clamps:** offer is capped at 95% of the max remaining value and
    floored at the min remaining value.
-8. **Rounding:** amounts below $1,000 round to the nearest $1; at or above
-   $1,000 round to the nearest $100.
+8. **Rounding:** amounts below $1 round to the nearest cent (so $0.01 stays
+   $0.01); amounts from $1 up to under $1,000 round to the nearest $1; amounts
+   at or above $1,000 round to the nearest $100.
 
 The offer is then delivered via generateBankerOfferWithDrama(), which inserts a
 short "Banker thinking" delay (configurable in TIMING) before resolving.
@@ -301,7 +338,7 @@ Almost everything tunable lives in **js/config.js**:
 - **CASE_VALUES** - the 26 prize amounts. Keep it length 26 for a full board, or
   change the ladder entirely. LOW_VALUE_COUNT (13) splits the side value-boards
   into Low/High halves.
-- **ROUND_CONFIG** - per-round boxesToOpen. The sum should be 25 so that exactly
+- **ROUND_CONFIG** - per-round boxesToOpen. The sum should be 24 so that exactly
   one non-player case remains for the Switch finale. TOTAL_ROUNDS derives
   automatically from this array.
 - **BANKER_CONFIG** - stage percentage ranges (early/mid/late), volatility,

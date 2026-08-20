@@ -10,7 +10,9 @@
  * 计算银行家报价
  * @returns {number} 报价金额（已取整）
  */
+let _lastBaitApplied = false;
 function calculateBankerOffer() {
+    _lastBaitApplied = false;
     const state = StateManager.getState();
 
     // 获取剩余金额的期望值
@@ -52,6 +54,7 @@ function calculateBankerOffer() {
         if (Math.random() < baitChance) {
             const baitBonus = randomInRange(BANKER_CONFIG.baitBonus.min, BANKER_CONFIG.baitBonus.max);
             offer *= (1 + baitBonus);
+            _lastBaitApplied = true;
             console.log('[Banker] 诱饵报价触发！额外加成:', (baitBonus * 100).toFixed(1) + '%');
         }
     }
@@ -60,11 +63,7 @@ function calculateBankerOffer() {
     const remainingValues = state.remainingValues;
     const highValueCount = remainingValues.filter(v => v >= 1000).length;
     const totalRemaining = remainingValues.length;
-
-    if (highValueCount === 0 && totalRemaining > 0) {
-        // 全是低值时，报价比例上调 10%-20%
-        offer *= 1 + randomInRange(0.10, 0.20);
-    }
+    // 注：实际加成在下方“钳制之后”再叠加（见 BUG-4 修复），避免被 0.95*maxRemaining 钳制悄悄抵消
 
     // 如果只剩最高奖 $1,000,000 和极低值，银行家可能压价更狠
     const hasMillion = remainingValues.includes(1000000);
@@ -76,20 +75,30 @@ function calculateBankerOffer() {
         offer *= 0.85;
     }
 
-    // 确保报价不超过剩余最大值（合理性保护）
-    const maxRemaining = Math.max(...remainingValues);
-    if (offer > maxRemaining) {
-        offer = maxRemaining * 0.95;
-    }
-
-    // 确保报价不低于剩余最小值
-    const minRemaining = Math.min(...remainingValues);
-    if (offer < minRemaining) {
-        offer = minRemaining;
-    }
-
-    // 取整处理
+    // 先取整，再钳制（避免"先钳到最小值再取整"把 $0.01 这类小额归零为 $0）
     offer = roundOffer(offer);
+
+    // 合理性保护：报价不应高于剩余最大值、也不应低于剩余最小值
+    const maxRemaining = Math.max(...remainingValues);
+    const minRemaining = Math.min(...remainingValues);
+    if (offer > maxRemaining) {
+        offer = roundOffer(maxRemaining * 0.95);
+    }
+    if (offer < minRemaining) {
+        offer = roundOffer(minRemaining);
+    }
+
+    // 最终兜底：任何情况下报价都应为正数（至少保留到分，且不低于剩余最小值）
+    if (!isFinite(offer) || offer <= 0) {
+        offer = roundOffer(minRemaining);
+    }
+
+    // 全低值盘“更慷慨”加成（修复 BUG-4）：前面的钳制会把报价压到 0.95*maxRemaining，
+    // 若在此之前直接 ×(1+10%~20%) 会被该钳制悄悄抵消。故在钳制结果上叠加加成，
+    // 并以上限不超过剩余最大值本身为界，确保善意加成真正生效。
+    if (highValueCount === 0 && totalRemaining > 0) {
+        offer = Math.min(maxRemaining, roundOffer(offer * (1 + randomInRange(0.10, 0.20))));
+    }
 
     console.log(`[Banker] 第${roundNumber}轮报价计算:`, {
         expectedValue: expectedValue.toFixed(2),
@@ -138,6 +147,10 @@ function randomInRange(min, max) {
  * @returns {number}
  */
 function roundOffer(amount) {
+    if (amount < 1) {
+        // 小额（含分）：保留两位小数字段，避免 $0.01 这类金额取整到 $1 时归零
+        return Math.round((amount + Number.EPSILON) * 100) / 100;
+    }
     if (amount < BANKER_CONFIG.roundingThreshold) {
         return Math.round(amount / BANKER_CONFIG.roundingSmall) * BANKER_CONFIG.roundingSmall;
     } else {
@@ -171,7 +184,6 @@ async function generateBankerOfferWithDrama() {
  */
 function getOfferCommentary(offer, expectedValue) {
     const ratio = offer / expectedValue;
-    const roundNumber = StateManager.getState().currentRoundIndex + 1;
 
     // 评论文案取自 i18n 字典（银行家评论为字符串数组），随语言切换自动适配
     const pick = (key) => {
@@ -181,8 +193,8 @@ function getOfferCommentary(offer, expectedValue) {
 
     // 判断是否为诱饵报价
     const state = StateManager.getState();
-    const isBait = state.consecutiveRejects >= BANKER_CONFIG.baitTriggerRejects &&
-        offer > expectedValue * 0.9;
+    // 仅当本次报价“真的”触发了诱饵加成时才用诱饵评语，避免言行不一（bug #4）
+    const isBait = _lastBaitApplied;
 
     if (isBait) {
         return pick('banker.comments.bait');
@@ -202,14 +214,7 @@ function getOfferCommentary(offer, expectedValue) {
  * @param {number} offer
  * @returns {string}
  */
-function formatOfferForDisplay(offer) {
-    if (offer >= 1000000) {
-        return '$' + (offer / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
-    } else if (offer >= 1000) {
-        return '$' + (offer / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
-    }
-    return '$' + offer.toLocaleString();
-}
+// (formatOfferForDisplay 已移除：此前未被任何调用方使用，属于死代码，见 bug #9)
 
 // 处理玩家"讨价还价"（还价）请求：银行家心里有围绕期望值浮动的最高接受价（ceiling），
 // 玩家还价 <= ceiling 则接受，否则拒绝（维持原报价）。整局仅一次的限制由 StateManager.haggleUsed 控制。

@@ -18,6 +18,11 @@ const GameController = {
      * 初始化游戏
      */
     async init() {
+        // 对局代次：用于让挂起的异步流程在重置时失效（bug #6）
+        this.generation = (this.generation || 0) + 1;
+        // 决策锁：防止同一笔决策被重复/重入触发（修复 Bug A / Bug B）
+        this.decisionLock = false;
+
         // 初始化主题（需先于 bindEvents，避免主题切换依赖的元素未就绪）
         this.initTheme();
 
@@ -235,7 +240,7 @@ const GameController = {
         if (this.selectingAnimating) return;
 
         // 阶段 1：选择玩家自己的箱子
-        if (state.phase === 'selecting_player_case') {
+        if (state.phase === GAME_PHASE.SELECTING_PLAYER_CASE) {
             const success = StateManager.selectPlayerCase(caseNumber);
             if (success) {
                 UI.playSound('open');
@@ -250,7 +255,7 @@ const GameController = {
         }
 
         // 阶段 2：开箱阶段
-        if (state.phase === 'opening_cases') {
+        if (state.phase === GAME_PHASE.OPENING_CASES) {
             // 不能点击玩家自己的箱子，也不能点击已开启的箱子
             if (caseNumber === state.playerCaseNumber) return;
             if (state.openedCases.has(caseNumber)) return;
@@ -277,7 +282,10 @@ const GameController = {
                 // 短暂延迟后进入银行家报价（间隔见 config.js 的 TIMING）
                 const gap = (typeof TIMING !== 'undefined' && TIMING.roundCompleteToBankerCall != null)
                     ? TIMING.roundCompleteToBankerCall : 250;
-                setTimeout(() => this.triggerBankerOffer(), gap);
+                // 修复 Bug C：捕获 generation，避免本轮结束→报价间隙内的“重新开始”让定时器
+                // 把报价作用到全新对局（对局代次防护前移）
+                const gen = this.generation;
+                setTimeout(() => { if (gen === this.generation) this.triggerBankerOffer(); }, gap);
             }
         }
     },
@@ -286,10 +294,13 @@ const GameController = {
      * 触发银行家报价
      */
     async triggerBankerOffer() {
+        const gen = this.generation;
         const state = StateManager.getState();
 
         // 计算报价（带戏剧性延迟）
         const offer = await generateBankerOfferWithDrama();
+        // 若在此期间玩家点了“再来一局”，本轮报价作废，避免作用到新对局
+        if (gen !== this.generation) return;
 
         // 保存报价到状态
         StateManager.setBankerOffer(offer);
@@ -302,16 +313,36 @@ const GameController = {
         await UI.showBankerOffer(offer);
 
         // 更新阶段（getState 返回浅拷贝，必须用 StateManager.setPhase 才能真正改写）
-        StateManager.setPhase('banker_offer');
+        StateManager.setPhase(GAME_PHASE.BANKER_OFFER);
+        // 解锁决策：新报价已出现，允许玩家作出 DEAL / NO DEAL（修复 Bug B）
+        this.decisionLock = false;
+    },
+
+    /**
+     * 决策锁：同一笔决策（DEAL / NO DEAL / 保留 / 交换）只允许进入一次，
+     * 防止快速双击、Esc 在弹窗关闭窗口期重入、以及还价结算延时窗口内误触
+     * 导致重复结算或轮次错乱（修复 Bug A / Bug B）。
+     * @returns {boolean} 是否允许继续处理本次决策
+     */
+    _canDecide() {
+        if (StateManager.getState().isGameOver) return false;
+        if (this.decisionLock) return false;
+        this.decisionLock = true;
+        return true;
     },
 
     /**
      * 处理接受报价
      */
     async handleDeal() {
+        if (!this._canDecide()) return;
+        // 捕获对局代次：下面显示结算的延时回调在重开后必须作废（修复 BUG-1）
+        const gen = this.generation;
         UI.playSound('deal');
         UI.setButtonDisabled('btn-deal', true);
         UI.setButtonDisabled('btn-no-deal', true);
+        // 决策后一并禁用还价按钮，避免过渡窗内还价被受理（修复 BUG-A）
+        UI.setButtonDisabled('btn-haggle', true);
 
         StateManager.acceptDeal();
         UI.hideBankerOffer();
@@ -320,8 +351,9 @@ const GameController = {
         const playerCase = StateManager.getPlayerCase();
         await UI.animatePlayerCaseOpen(playerCase.value);
 
-        // 短暂延迟后显示结果
+        // 短暂延迟后显示结果（重开后此回调作废，避免弹出"幽灵结算窗"）
         setTimeout(() => {
+            if (gen !== this.generation) return;
             UI.showResult();
         }, 600);
     },
@@ -330,21 +362,42 @@ const GameController = {
      * 处理拒绝报价
      */
     async handleNoDeal() {
+        if (!this._canDecide()) return;
         UI.playSound('open');
         UI.setButtonDisabled('btn-deal', true);
         UI.setButtonDisabled('btn-no-deal', true);
+        // 决策后一并禁用还价按钮（修复 BUG-A）
+        UI.setButtonDisabled('btn-haggle', true);
 
         StateManager.rejectDeal();
-        UI.hideBankerOffer();
 
         // 检查是否进入 Switch Case
         const newState = StateManager.getState();
-        if (newState.phase === 'switch_case') {
+        // 进入交换阶段时复用背景遮罩（keepBackdrop=true），避免遮罩先隐后显的闪烁（修复 4.4）
+        UI.hideBankerOffer(newState.phase === GAME_PHASE.SWITCH_CASE);
+
+        if (newState.phase === GAME_PHASE.SWITCH_CASE) {
+            // 刷新轮次信息为“最终轮”，避免仍停留在上一轮开箱提示（修复 4.6）
+            UI.updateRoundInfo();
+            // 解锁决策：进入交换阶段，允许玩家选择“保留 / 交换”（修复 Bug A / Bug B）。
+            // 但决策锁必须延迟到交换弹窗真正出现时才释放——否则在银行家弹窗仍可见的
+            // 250ms 过渡期内，ESC 会绕过按钮 disabled 检查而重入 handleNoDeal，导致
+            // consecutiveRejects 被重复累加、enterSwitchCase 被二次执行（修复 BUG-2）。
+            // 同时该延时回调需受对局代次保护，重开时作废（修复 BUG-1）。
+            const gen = this.generation;
             setTimeout(() => {
+                if (gen !== this.generation) return;
+                this.decisionLock = false;
                 UI.showSwitchCase();
             }, 500);
         } else {
-            // 进入下一轮开箱
+            // 进入下一轮开箱：显式复位决策锁并重新启用按钮，
+            // 消除对 triggerBankerOffer 重新解锁的隐式依赖，更健壮（修复 4.2）
+            this.decisionLock = false;
+            UI.setButtonDisabled('btn-deal', false);
+            UI.setButtonDisabled('btn-no-deal', false);
+            // 下一轮报价将由 updateHaggleUI 按 haggleUsed 重新显隐；此处复位 disabled（修复 BUG-A）
+            UI.setButtonDisabled('btn-haggle', false);
             UI.updateRoundInfo();
             UI.renderCasesGrid(); // 更新箱子状态
             UI.renderMoneyPanels(); // 更新金额面板
@@ -358,6 +411,8 @@ const GameController = {
     async handleHaggle() {
         const state = StateManager.getState();
         if (state.haggleUsed) return;
+        // 仅当处于银行家报价阶段且未锁定决策时才允许展开还价（修复 BUG-A）
+        if (state.phase !== GAME_PHASE.BANKER_OFFER || this.decisionLock) return;
         UI.showHagglePanel();
     },
 
@@ -374,6 +429,9 @@ const GameController = {
     async handleHaggleSubmit() {
         const state = StateManager.getState();
         if (state.haggleUsed) return;
+        // 阶段/决策锁/已结束守卫：禁止在报价已作废或已决策后受理还价（修复 BUG-A）
+        if (state.phase !== GAME_PHASE.BANKER_OFFER || state.isGameOver || this.decisionLock) return;
+        const gen = this.generation;
 
         const counter = Number(UI.getHaggleInputValue());
         if (!isFinite(counter) || counter <= 0) {
@@ -391,20 +449,35 @@ const GameController = {
         UI.updateHaggleUI();
 
         if (decision.accepted) {
-            StateManager.setBankerOffer(decision.finalOffer);
+            // 直接更新当前报价（并修正最近一条报价历史），避免重复 push 同轮记录（bug #9）
+            StateManager.setCurrentOffer(decision.finalOffer);
             UI.setOfferDisplay(decision.finalOffer);
             UI.playSound('deal');
             UI.showHaggleResult(t('banker.haggle.accepted', { amount: formatCurrency(decision.finalOffer) }), true);
             // 还价被接受后强制结束游戏（自动成交，禁用两个按钮并走 DEAL 流程）
             UI.setButtonDisabled('btn-deal', true);
             UI.setButtonDisabled('btn-no-deal', true);
-            setTimeout(() => this.handleDeal(), 900);
+            // 还价被接受即成交，禁用还价按钮（修复 BUG-A）
+            UI.setButtonDisabled('btn-haggle', true);
+            // 锁定决策：阻止 900ms 结算窗口内 Esc 等误触再次触发 NO DEAL（修复 Bug B）
+            this.decisionLock = true;
+            setTimeout(() => { if (gen === this.generation) { this.decisionLock = false; this.handleDeal(); } }, 900);
         } else {
             UI.showHaggleResult(t('banker.haggle.rejected', { amount: formatCurrency(originalOffer) }), false);
             // 银行家拒绝还价后，原报价作废，自动强制继续游戏（禁用两按钮并走 NO DEAL 流程，无需玩家点击）
             UI.setButtonDisabled('btn-deal', true);
             UI.setButtonDisabled('btn-no-deal', true);
-            setTimeout(() => this.handleNoDeal(), 900);
+            // 锁定决策：阻止 900ms 结算窗口内 Esc 等误触再次触发决策（修复 Bug B）
+            this.decisionLock = true;
+            setTimeout(() => {
+                if (gen !== this.generation) return;
+                // 还价被拒 = 玩家并未接受报价、选择继续游戏，这本身是对当档银行家报价的
+                // 一次真实拒绝，应正常计入 consecutiveRejects（由 handleNoDeal→rejectDeal 完成）。
+                // 注意：切勿再调用 decrementConsecutiveRejects()，否则真实拒绝会被抵消、
+                // 诱饵报价触发条件（baitTriggerRejects=3）被推迟一轮（修复 BUG-B 回归）。
+                this.decisionLock = false;
+                this.handleNoDeal();
+            }, 900);
         }
     },
 
@@ -412,6 +485,9 @@ const GameController = {
      * 处理保留原箱子
      */
     async handleKeep() {
+        if (!this._canDecide()) return;
+        // 捕获对局代次：下面显示结算的延时回调在重开后必须作废（修复 BUG-1）
+        const gen = this.generation;
         UI.playSound('deal');
         StateManager.keepCase();
         UI.hideSwitchCase();
@@ -419,7 +495,9 @@ const GameController = {
         // 保留原箱子后，翻转打开自己的箱子
         await UI.animatePlayerCaseOpen(StateManager.getPlayerCase().value);
 
+        // 短暂延迟后显示结果（重开后此回调作废，避免弹出“幽灵结算窗”）
         setTimeout(() => {
+            if (gen !== this.generation) return;
             UI.showResult();
         }, 600);
     },
@@ -428,6 +506,9 @@ const GameController = {
      * 处理交换箱子
      */
     async handleSwitch() {
+        if (!this._canDecide()) return;
+        // 捕获对局代次：下面显示结算的延时回调在重开后必须作废（修复 BUG-1）
+        const gen = this.generation;
         UI.playSound('deal');
         StateManager.switchCase();
         UI.hideSwitchCase();
@@ -455,7 +536,9 @@ const GameController = {
         // 交换后，翻转打开现在属于自己的箱子（即原另一个箱子内的金额）
         await UI.animatePlayerCaseOpen(playerCase.value);
 
+        // 短暂延迟后显示结果（重开后此回调作废，避免弹出“幽灵结算窗”）
         setTimeout(() => {
+            if (gen !== this.generation) return;
             UI.showResult();
         }, 600);
     },
@@ -464,7 +547,9 @@ const GameController = {
      * 处理重新开始
      */
     handleRestart() {
-        UI.playSound('deal');
+        // 递增对局代次，使任何挂起的异步流程（银行家报价、还价延迟等）作废
+        this.generation = (this.generation || 0) + 1;
+        this.decisionLock = false;
         UI.hideResult();
 
         // 完全重置并重新开始

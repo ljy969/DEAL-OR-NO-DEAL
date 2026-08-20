@@ -359,3 +359,20 @@ h1, h2, h3, h4, h5, h6 {
 }
 .banker-modal__haggle-result--accepted { color: var(--color-success); background: rgba(40, 167, 69, 0.15); border: 1px solid var(--color-success); }
 .banker-modal__haggle-result--rejected { color: var(--color-danger); background: rgba(220, 53, 69, 0.12); border: 1px solid var(--color-danger); }
+
+/* 银行家评语（修复：此前只 console.log，玩家看不到） */
+.banker-modal__commentary {
+    margin: var(--space-sm) 0 0;
+    padding: var(--space-sm) var(--space-md);
+    font-style: italic;
+    font-size: var(--font-size-sm);
+    line-height: var(--line-height-normal);
+    color: var(--color-text-secondary);
+    background: var(--color-bg-tertiary);
+    border-left: 3px solid var(--color-primary);
+    border-radius: var(--radius-sm);
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.banker-modal__commentary--show { opacity: 1; transform: translateY(0); }

@@ -23,7 +23,7 @@ const state = {
     // 玩家箱子中的金额
     playerCaseValue: null,
 
-    // 剩余未开启的箱子编号（不包括玩家箱子）
+    // 剩余未开启的箱子编号（选箱前为全部 26；selectPlayerCase 后剔除玩家箱，变为 25 个可开箱）
     remainingCases: [],
 
     // 已开启的箱子：编号 -> 金额
@@ -83,6 +83,14 @@ const state = {
 const StateManager = {
     /**
      * 获取完整状态快照（用于调试）
+     */
+    /**
+     * 获取状态快照（浅拷贝）。
+     * 注意：返回对象中的 Map/Array 字段（caseAssignments、openedCases、remainingValues 等）
+     * 与原 state 共享同一引用，因此对其读取是“实时”的；而 phase / openedThisRound /
+     * boxesToOpenThisRound 等数值字段是调用时刻的快照。需要最新数值时请重新调用 getState()
+     * 或改用 StateManager 提供的方法（如 isRoundComplete()），切勿持有旧快照读取可变数值字段。
+     * @returns {object} 状态对象的浅拷贝
      */
     getState() {
         return { ...state };
@@ -255,6 +263,16 @@ const StateManager = {
     },
 
     /**
+     * 直接更新当前报价（用于还价被接受时），并同步修正最近一条报价历史，
+     * 避免重复 push 一条同轮记录（bug #9）。
+     */
+    setCurrentOffer(offer) {
+        state.currentOffer = offer;
+        const last = state.offerHistory[state.offerHistory.length - 1];
+        if (last) last.offer = offer;
+    },
+
+    /**
      * 玩家接受报价
      */
     acceptDeal() {
@@ -274,6 +292,17 @@ const StateManager = {
         // 拒绝报价后进入下一轮开箱，或在最后一轮后进入交换阶段。
         // advanceRound() 会自增 currentRoundIndex 并据此设置阶段与本轮需开箱数量。
         this.advanceRound();
+    },
+
+    /**
+     * 递减连续拒绝次数。
+     * 用于“还价被银行家拒绝”这类场景：玩家只是结束了一次讨价还价，
+     * 并未真正拒绝银行家的报价（其原报价已作废、玩家只是继续游戏），
+     * 因此不应计入 consecutiveRejects，否则会让“诱饵报价”触发条件
+     * （baitTriggerRejects = 3）比设计意图更早满足。
+     */
+    decrementConsecutiveRejects() {
+        if (state.consecutiveRejects > 0) state.consecutiveRejects--;
     },
 
     /**

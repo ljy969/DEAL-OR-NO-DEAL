@@ -6,7 +6,7 @@
 // 说明：CASE_VALUES / ROUND_CONFIG / TOTAL_ROUNDS / LOW_VALUE_COUNT /
 // GAME_PHASE / CASE_STATE / formatCurrency / getValueClass / getValueLabel
 // 由 config.js 全局提供；StateManager 由 state.js 全局提供；
-// formatOfferForDisplay / getOfferCommentary 由 banker.js 全局提供。
+// getOfferCommentary 由 banker.js 全局提供（formatOfferForDisplay 已移除，见 banker.js）。
 // 本项目使用普通脚本加载，此处不再使用 import。
 
 // ========================================
@@ -43,6 +43,7 @@ function cacheElements() {
     elements.btnHaggleSubmit = document.getElementById('btn-haggle-submit');
     elements.btnHaggleCancel = document.getElementById('btn-haggle-cancel');
     elements.bankerHaggleResult = document.getElementById('banker-haggle-result');
+    elements.bankerCommentary = document.getElementById('banker-commentary');
     elements.switchModal = document.getElementById('switch-modal');
     elements.switchPlayerCaseNum = document.getElementById('switch-player-case-num');
     elements.switchOtherCaseNum = document.getElementById('switch-other-case-num');
@@ -77,17 +78,15 @@ function cacheElements() {
 function renderMoneyPanels() {
     const state = StateManager.getState();
     const openedValues = new Set(Array.from(state.openedCases.values()));
-    const playerValue = state.playerCaseValue;
 
-    // 低值金额 (前13个)
     const lowValues = CASE_VALUES.slice(0, LOW_VALUE_COUNT);
-    // 高值金额 (后13个)
     const highValues = CASE_VALUES.slice(LOW_VALUE_COUNT);
 
+    // 只展示“公开奖阶”（哪些金额已被开走）；绝不标出“哪个金额是你的箱子”，
+    // 否则玩家能直接看到自己箱子的真实金额，违背 README“金额整局保持隐藏”的设计。
     elements.lowMoneyList.innerHTML = lowValues.map(value => {
         const isOpened = openedValues.has(value);
-        const isPlayer = value === playerValue;
-        const className = `money-item ${isOpened ? 'money-item--opened' : ''} ${isPlayer ? 'money-item--player' : ''}`;
+        const className = `money-item ${isOpened ? 'money-item--opened' : ''}`;
         return `<li class="${className}" data-value="${value}">
             <span class="money-item__label">${getValueLabel(value)}</span>
             <span class="money-item__value">${formatCurrency(value)}</span>
@@ -96,8 +95,7 @@ function renderMoneyPanels() {
 
     elements.highMoneyList.innerHTML = highValues.map(value => {
         const isOpened = openedValues.has(value);
-        const isPlayer = value === playerValue;
-        const className = `money-item ${isOpened ? 'money-item--opened' : ''} ${isPlayer ? 'money-item--player' : ''}`;
+        const className = `money-item ${isOpened ? 'money-item--opened' : ''}`;
         return `<li class="${className}" data-value="${value}">
             <span class="money-item__label">${getValueLabel(value)}</span>
             <span class="money-item__value">${formatCurrency(value)}</span>
@@ -130,11 +128,10 @@ function renderCasesGrid() {
     const numbers = Array.from({ length: 26 }, (_, i) => i + 1);
 
     elements.casesGrid.innerHTML = numbers.map(num => {
-        // 玩家选定自己的箱子后，该箱子已从中央选择区"取出"，
-        // 只在专属的"你的箱子"区域展示，因此不再渲染在中央网格里，
-        // 避免它仍可被点击/被当成待开启箱子留在选择区域。
         if (state.playerCaseNumber && num === state.playerCaseNumber) {
-            return '';
+            // 玩家箱子已移到侧边面板：保留一个占位格在原编号位置，
+            // 既避免网格末端出现空洞，也保证剩余箱子编号位置不漂移
+            return '<div class="case case--placeholder" aria-hidden="true"></div>';
         }
 
         const isOpened = state.openedCases.has(num);
@@ -145,6 +142,7 @@ function renderCasesGrid() {
         let innerHTML = '';
 
         if (isOpened) {
+            // 已开箱：值已揭晓，可安全展示（含高/低配色）
             cssClass += ` case--opened case--${valueClass}`;
             innerHTML = `
                 <div class="case__inner">
@@ -156,19 +154,25 @@ function renderCasesGrid() {
                     </div>
                 </div>`;
         } else {
+            // 未开箱：背面的金额与高/低配色都不要写进 DOM，
+            // 否则玩家可用开发者工具提前看到每个箱子的真实金额（泄密）。
+            // 金额仅在 animateCaseOpen 翻转那一刻由 JS 注入。
             cssClass += ' case--unopened';
             innerHTML = `
                 <div class="case__inner">
                     <div class="case__front">
                         <span class="case__number">${num}</span>
                     </div>
-                    <div class="case__back case--${valueClass}">
-                        <span class="case__value">${formatCurrency(value)}</span>
+                    <div class="case__back">
+                        <span class="case__value"></span>
                     </div>
                 </div>`;
         }
 
-        return `<div class="${cssClass}" data-number="${num}" data-value="${value}" role="button" tabindex="0" aria-label="${t('case.aria', { n: num })}" aria-pressed="false">${innerHTML}</div>`;
+        const interactAttrs = isOpened
+            ? `tabindex="-1" aria-hidden="true"`
+            : `role="button" tabindex="0" aria-label="${t('case.aria', { n: num })}" aria-pressed="false"`;
+        return `<div class="${cssClass}" data-number="${num}" ${interactAttrs}>${innerHTML}</div>`;
     }).join('');
 }
 
@@ -211,17 +215,22 @@ function animateCaseOpen(caseNumber, value) {
  * @param {number} caseNumber
  * @param {number} value
  */
-function showPlayerCase(caseNumber, value) {
+/**
+ * 玩家选定箱子后统一准备"你的箱子"显示区（编号、显示区、轮次信息）。
+ * 正常飞行路径与降动效降级路径共用此函数，避免两份逻辑分叉（修复 BUG-C）。
+ * @param {number} caseNumber
+ * @param {boolean} fillBox 是否立即把编号写入玩家箱子盒子（降级路径填；飞行路径留空等克隆体抵达）
+ * @param {boolean} hideBanner 是否立即隐藏指示横幅（降级路径隐藏；飞行路径交由 animateBannerOut 平滑离场）
+ */
+function preparePlayerCaseDisplay(caseNumber, fillBox, hideBanner) {
     elements.playerCaseNumber.textContent = caseNumber;
     elements.playerCaseDisplay.hidden = false;
-    elements.playerCaseBox.innerHTML = `<span class="player-case__number">${caseNumber}</span>`;
-
-    // 隐藏指示横幅
-    elements.instructionBanner.hidden = true;
-
-    // 显示轮次信息
     elements.roundInfo.hidden = false;
     updateRoundInfo();
+    if (hideBanner) elements.instructionBanner.hidden = true;
+    if (fillBox) {
+        elements.playerCaseBox.innerHTML = `<span class="player-case__number">${caseNumber}</span>`;
+    }
 }
 
 /**
@@ -242,7 +251,8 @@ async function animatePlayerCaseSelection(caseNumber, value) {
     // 降级：无来源元素或用户偏好减少动画时，直接显示，不做飞行
     if (prefersReduced || !sourceEl) {
         renderCasesGrid(); // 仍需重渲染，将玩家箱子移出中央网格
-        showPlayerCase(caseNumber, value);
+        // 降级路径：直接填充编号并隐藏横幅/显示轮次信息（复用同一 helper，修复 BUG-C）
+        preparePlayerCaseDisplay(caseNumber, true, true);
         return;
     }
 
@@ -271,14 +281,13 @@ async function animatePlayerCaseSelection(caseNumber, value) {
     renderCasesGrid();
 
     // 4) 准备"你的箱子"区域，但先留空占位，等待克隆体抵达
-    elements.playerCaseNumber.textContent = caseNumber;
-    elements.playerCaseDisplay.hidden = false;
+    //    preparePlayerCaseDisplay 统一处理编号/显示区/轮次信息（与降级路径共用，修复 BUG-C）；
+    //    横幅的平滑离场仍交由下方 animateBannerOut() 负责，此处不立即隐藏。
+    preparePlayerCaseDisplay(caseNumber, false, false);
     elements.playerCaseBox.innerHTML = '';
     elements.playerCaseBox.classList.add('player-case__box--incoming');
 
-    // 轮次信息显示（沿用基础 slideUp 动画）
-    elements.roundInfo.hidden = false;
-    updateRoundInfo();
+    // 轮次信息显示（沿用基础 slideUp 动画）—— 已由 preparePlayerCaseDisplay 内部完成
 
     // 指示横幅平滑离场
     animateBannerOut();
@@ -353,7 +362,13 @@ function updateRoundInfo() {
     elements.roundCurrent.textContent = isFinal
         ? t('round.final')
         : t('round.current', { n: roundInfo.round });
-    elements.roundTarget.textContent = t('round.toOpen', { n: roundInfo.boxesToOpen });
+    if (isFinal) {
+        // 最终轮进入交换阶段，不再需要“开启 N 个箱子”的提示
+        elements.roundTarget.hidden = true;
+    } else {
+        elements.roundTarget.hidden = false;
+        elements.roundTarget.textContent = t('round.toOpen', { n: roundInfo.boxesToOpen });
+    }
     // 进度：使用 innerHTML 保留数字加粗样式（round.progress 内含 <b> 标签）
     elements.roundProgress.innerHTML = t('round.progress', {
         opened: state.openedThisRound,
@@ -400,8 +415,13 @@ async function showBankerOffer(offer) {
     // 播放铃声音效（可选）
     playSound('ring');
 
-    // 显示报价评论（可选：添加到弹窗中）
-    console.log('[Banker] ', commentary);
+    // 显示银行家评语（此前只 console.log，玩家看不到；现在写入弹窗，见 bug #5）
+    if (elements.bankerCommentary) {
+        elements.bankerCommentary.textContent = commentary;
+        elements.bankerCommentary.classList.remove('banker-modal__commentary--show');
+        void elements.bankerCommentary.offsetWidth; // 触发重排以重放淡入动画
+        elements.bankerCommentary.classList.add('banker-modal__commentary--show');
+    }
 
     // 刷新"讨价还价"按钮与输入面板的可见状态（整局仅一次）
     updateHaggleUI();
@@ -411,20 +431,25 @@ async function showBankerOffer(offer) {
 /**
  * 隐藏银行家报价弹窗
  */
-function hideBankerOffer() {
+function hideBankerOffer(keepBackdrop) {
     elements.bankerModalContent.classList.add('modal-exit');
     elements.bankerModalContent.classList.remove('modal-enter');
+    if (elements.bankerCommentary) elements.bankerCommentary.textContent = '';
     elements.bankerOfferAmount.classList.remove('banker-modal__amount--animating');
 
-    // 隐藏背景遮罩
-    elements.modalBackdrop.classList.add('modal-backdrop-exit');
-    elements.modalBackdrop.classList.remove('modal-backdrop-enter');
+    // 隐藏背景遮罩；进入交换阶段时复用当前遮罩（keepBackdrop=true），避免遮罩先隐后显的闪烁
+    if (!keepBackdrop) {
+        elements.modalBackdrop.classList.add('modal-backdrop-exit');
+        elements.modalBackdrop.classList.remove('modal-backdrop-enter');
+    }
 
     setTimeout(() => {
         elements.bankerModal.hidden = true;
         elements.bankerModalContent.classList.remove('modal-exit');
-        elements.modalBackdrop.hidden = true;
-        elements.modalBackdrop.classList.remove('modal-backdrop-exit');
+        if (!keepBackdrop) {
+            elements.modalBackdrop.hidden = true;
+            elements.modalBackdrop.classList.remove('modal-backdrop-exit');
+        }
     }, 250);
 }
 
@@ -636,6 +661,8 @@ function resetUI() {
 
     // 隐藏轮次信息
     elements.roundInfo.hidden = true;
+    // roundTarget 在新一局会被 updateRoundInfo 按阶段重新设置 hidden，这里先复位为可见
+    elements.roundTarget.hidden = false;
 
     // 隐藏所有弹窗
     elements.bankerModal.hidden = true;
@@ -655,6 +682,7 @@ function resetUI() {
 
     // 移除所有动画类
     if (elements.bankerModalContent) elements.bankerModalContent.classList.remove('modal-enter', 'modal-exit');
+    if (elements.bankerCommentary) elements.bankerCommentary.textContent = '';
     if (elements.switchModalContent) elements.switchModalContent.classList.remove('modal-enter', 'modal-exit');
     if (elements.resultModalContent) elements.resultModalContent.classList.remove('modal-enter', 'modal-exit');
     elements.resultSummary.classList.remove('result-modal__summary--reveal');
@@ -798,32 +826,48 @@ function bindEvents(handlers) {
 
     // 方向键导航函数
     function navigateCases(currentCase, direction) {
-        const allCases = Array.from(elements.casesGrid.querySelectorAll('.case:not(.case--opened):not([disabled])'));
-        const currentIndex = allCases.indexOf(currentCase);
-        if (currentIndex === -1) return;
+        const allCases = Array.from(elements.casesGrid.querySelectorAll('.case:not(.case--opened):not(.case--placeholder):not([disabled])'));
+        if (allCases.indexOf(currentCase) === -1) return;
 
-        const cols = 13; // 网格列数
-        let targetIndex = currentIndex;
+        // 列数随响应式布局变化（桌面 13 列、平板/手机 7 列），动态读取避免方向键跳错
+        const cols = elements.casesGrid
+            ? getComputedStyle(elements.casesGrid).gridTemplateColumns.split(' ').length
+            : 13;
+        const rows = Math.ceil(26 / cols);
+        const playerCaseNumber = StateManager.getState().playerCaseNumber;
+        // 玩家箱占位格所在视觉索引；无占位（选箱阶段）时为 -1
+        const placeholderCell = playerCaseNumber ? playerCaseNumber - 1 : -1;
 
-        switch (direction) {
-            case 'ArrowRight':
-                targetIndex = currentIndex + 1;
-                break;
-            case 'ArrowLeft':
-                targetIndex = currentIndex - 1;
-                break;
-            case 'ArrowDown':
-                targetIndex = currentIndex + cols;
-                break;
-            case 'ArrowUp':
-                targetIndex = currentIndex - cols;
-                break;
+        // 26 格网格中第 N 个箱子固定落在第 N-1 格；玩家箱占位只占其中一格，
+        // 不影响其余箱子 (编号-1) 的行列映射（修复 BUG-E：此前按焦点列表下标 ±列数，
+        // 在占位格处发生 1 格列偏移，导致上下/左右导航落点错位）。
+        let vi = currentCase - 1;
+        let row = Math.floor(vi / cols);
+        let col = vi % cols;
+
+        if (direction === 'ArrowRight') col++;
+        else if (direction === 'ArrowLeft') col--;
+        else if (direction === 'ArrowDown') row++;
+        else if (direction === 'ArrowUp') row--;
+
+        // 越界则忽略（不换行）
+        if (col < 0 || col >= cols || row < 0 || row >= rows) return;
+        let nvi = row * cols + col;
+        if (nvi < 0 || nvi > 25) return;
+
+        // 落点恰为玩家箱占位格时，沿同方向再跳一格
+        if (nvi === placeholderCell) {
+            if (direction === 'ArrowRight' && col + 1 < cols) nvi = row * cols + (col + 1);
+            else if (direction === 'ArrowLeft' && col - 1 >= 0) nvi = row * cols + (col - 1);
+            else if (direction === 'ArrowDown' && row + 1 < rows) nvi = (row + 1) * cols + col;
+            else if (direction === 'ArrowUp' && row - 1 >= 0) nvi = (row - 1) * cols + col;
+            else return;
         }
+        if (nvi < 0 || nvi > 25) return;
 
-        // 边界检查
-        if (targetIndex >= 0 && targetIndex < allCases.length) {
-            allCases[targetIndex].focus();
-        }
+        const targetCase = nvi + 1;
+        const targetEl = allCases.find(el => parseInt(el.dataset.number, 10) === targetCase);
+        if (targetEl) targetEl.focus();
     }
 
     // Deal / No Deal 按钮
@@ -900,6 +944,17 @@ function bindEvents(handlers) {
 
     // 键盘快捷键
     document.addEventListener('keydown', (e) => {
+        // 若焦点在输入框（如"讨价还价"还价金额输入框）或内容可编辑区，
+        // 不触发任何快捷键，避免输入字母 d/n 时误触 DEAL / NO DEAL
+        const kt = e.target;
+        if (kt && (kt.tagName === 'INPUT' || kt.tagName === 'TEXTAREA' || kt.isContentEditable)) {
+            return;
+        }
+        // 还价面板打开时，D/N 快捷键同样失效，防止与输入还价冲突
+        if (elements.bankerHagglePanel && !elements.bankerHagglePanel.hidden) {
+            return;
+        }
+
         // ESC 关闭弹窗
         if (e.key === 'Escape') {
             if (!elements.bankerModal.hidden) handlers.onNoDeal();
@@ -960,7 +1015,10 @@ function applyI18n() {
 function updateHaggleUI() {
     if (!elements.btnHaggle) return;
     const used = StateManager.getState().haggleUsed;
+    // 每次展示报价时复位还价按钮的可见/可用状态：未使用 -> 显示且可用；已使用 -> 隐藏。
+    // 这样即便上一局在 DEAL/NO DEAL 时已被禁用（修复 BUG-A），新一局/新一轮也会重新可用。
     elements.btnHaggle.hidden = used;
+    elements.btnHaggle.disabled = used;
     if (elements.bankerHagglePanel) elements.bankerHagglePanel.hidden = true;
     if (elements.bankerHaggleResult) {
         elements.bankerHaggleResult.hidden = true;
@@ -1013,7 +1071,7 @@ const UI = {
     highlightMoneyValue,
     renderCasesGrid,
     animateCaseOpen,
-    showPlayerCase,
+    preparePlayerCaseDisplay,
     animatePlayerCaseSelection,
     updateRoundInfo,
     showBankerOffer,
