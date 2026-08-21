@@ -76,7 +76,7 @@ runs from `file://` without a server or module/CORS issues.
 ## Features
 
 - **Gameplay:** 26 cases, 9 opening rounds (6/5/4/3/2/1/1/1/1 cases opened per
-  round = 24 total), a Banker offer after each of the first 8 rounds, then a
+  round = 24 total), a Banker offer after each of the 9 opening rounds, then a
   final **Switch-Case** decision between your case and the last remaining case.
 - **Banker AI:** stage-based percentage of EV, triangular-random distribution,
   plus/minus 5–12% volatility, bait offers after 3 consecutive rejections,
@@ -94,7 +94,7 @@ runs from `file://` without a server or module/CORS issues.
 - **Animations:** 3D case flip, selection "fly-to-player", phone ring, offer
   amount pulse, result reveal, player-case glow, case swap, and modal
   enter/exit transitions; auto-degrades on reduced-motion.
-- **Audio:** synthesized sound effects (ring / open / deal) via the Web Audio
+- **Audio:** synthesized sound effects (ring / open / deal / win / lose) via the Web Audio
   API — no audio files needed.
 - **Accessibility:** ARIA roles/labels, full keyboard navigation, visible focus
   rings, reduced-motion and high-contrast support.
@@ -127,9 +127,9 @@ runs from `file://` without a server or module/CORS issues.
 > **Tip:** An offer *above* the shown Expected Value is statistically a "win".
 > The Banker's EV is computed over **all unopened cases, including your own**.
 
-> **Note:** The Banker makes an offer after each of the first eight opening
-> rounds. After the ninth (final) opening round there is no further offer — the
-> game goes straight to the Switch-Case finale.
+> **Note:** The Banker makes an offer after **every** opening round, including
+> the ninth. Declining the ninth (final) offer sends you straight to the
+> Switch-Case finale — there is no separate offer after that.
 
 > **Easter egg:** click the **"DEAL OR NO DEAL"** title 5 times in quick
 > succession to unlock the hidden **Developer Options** panel (see
@@ -263,8 +263,10 @@ effects live in `ui.js` (DOM/audio) and `state.js` (localStorage stats).
   the last round.
 - `enterSwitchCase()` — set `otherCaseNumber` / `otherCaseValue` (the last case).
 - `setBankerOffer(offer)` — record the current offer + push an offer-history row.
-- `acceptDeal()` / `rejectDeal()` / `keepCase()` / `switchCase()` — finalize the
-  outcome and capture `finalWinnings` plus the decision-time EV.
+- `acceptDeal()` / `acceptHaggle()` / `rejectDeal()` / `keepCase()` / `switchCase()`
+  — finalize the outcome and capture `finalWinnings` plus the decision-time EV.
+  (`acceptHaggle()` is used when the Banker accepts a counter-offer; it records the
+  decision as `'banker-accepted'`.)
 - `calculateExpectedValue()` — `sum(remainingValues) / remainingValues.length`.
 - `getResultSummary()` — `{ finalWinnings, playerCaseValue, otherCaseValue,
   expectedValue, decision, offerHistory, isDeal, beatExpected }`.
@@ -505,17 +507,21 @@ case is shown in place; essential transitions are shortened or removed.
 ## Audio
 
 Sound effects are **synthesized at runtime** with the Web Audio API
-(`ui.js` → `playSound('ring' | 'open' | 'deal')`); there are no audio files to
+(`ui.js` → `playSound('ring' | 'open' | 'deal' | 'win' | 'lose')`); there are no audio files to
 download. The `AudioContext` is created on the player's first interaction
 (click/keydown/touch) to satisfy browser autoplay policies, and resumed if it was
-suspended. Three cues exist:
+suspended. Five cues exist:
 
 - **ring** — the Banker's phone call (two-tone chime).
 - **open** — a case being opened (rising blip).
 - **deal** — a pleasant arpeggio when you DEAL / KEEP / SWITCH.
+- **win** — a rising major arpeggio (C5–C6) played on the Game Over screen when you
+  beat the expected value.
+- **lose** — a descending sawtooth tone played on the Game Over screen when you
+  finish below the expected value.
 
-Errors are swallowed silently (e.g. if the context cannot start), so audio never
-blocks gameplay.
+Non-fatal errors are logged via `console.warn` (e.g. if the context cannot start),
+so audio never blocks gameplay.
 
 ## Accessibility
 

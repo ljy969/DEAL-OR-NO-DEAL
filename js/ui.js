@@ -428,8 +428,9 @@ async function showBankerOffer(offer, isBait = false) {
         setTimeout(() => phoneIcon.classList.remove('banker-modal__phone--ringing'), ringDuration);
     }
 
-    // 播放铃声音效（可选）
-    playSound('ring');
+    // 播放铃声音效（可选）。showBankerOffer 经由 setTimeout 触发、已脱离用户手势，
+    // 但此时音频上下文应已在之前的点击中进入 running；await 确保 resume 完成后再播放
+    await playSound('ring');
 
     // 显示银行家评语（此前只 console.log，玩家看不到；现在写入弹窗，见 bug #5）
     if (elements.bankerCommentary) {
@@ -574,6 +575,10 @@ function showResult() {
 
     elements.resultModal.hidden = false;
     elements.resultModalContent.classList.add('modal-enter');
+
+    // 播放结算音效：战胜期望值用 win，低于期望值用 lose（修复 win/lose 设计未实现的问题）
+    // showResult 本身在 setTimeout 中调用（脱离手势），但音频上下文此前已 running，playSound 会先 await resume
+    playSound(summary.beatExpected ? 'win' : 'lose');
 
     // 触发揭示动画
     setTimeout(() => {
@@ -765,16 +770,27 @@ document.addEventListener('touchstart', initAudioOnUserInteraction);
 /**
  * 简单音效播放（使用 Web Audio API 生成基础音调）
  * @param {string} type - 'ring' | 'open' | 'deal' | 'win' | 'lose'
+ *
+ * 修复说明（对应分析报告根因 1/3）：
+ *  - 浏览器自动播放策略要求 AudioContext 必须在 running 状态才发声。resume() 是异步的，
+ *    旧代码在 suspended 时调用 resume() 后立刻按"冻结的 currentTime"同步调度振荡器，
+ *    事件会被浏览器静默丢弃。这里改为 `await ctx.resume()` 之后再调度。
+ *  - 旧代码的 try/catch 完全吞掉异常，失败后无任何痕迹。这里改为打印 console.warn，
+ *    并在上下文仍不可用/类型未知时显式返回，避免静默失败、便于排查。
  */
-function playSound(type) {
-    // 可选：实现简单音效
-    // 由于不依赖外部资源，这里用 Web Audio API 合成简单音调
+async function playSound(type) {
     try {
         const ctx = getAudioContext();
-        // 确保音频上下文处于运行状态
+        // 关键修复：resume() 异步，必须先 await 再调度，否则 suspended 下会被冻结时钟丢弃事件
         if (ctx.state === 'suspended') {
-            ctx.resume();
+            await ctx.resume();
         }
+        // 若恢复后仍未 running（例如被系统/浏览器策略禁止），放弃本次播放但给出警告
+        if (ctx.state !== 'running') {
+            console.warn('[audio] AudioContext 未能进入 running 状态，跳过音效:', type);
+            return;
+        }
+
         const oscillator = ctx.createOscillator();
         const gain = ctx.createGain();
 
@@ -807,9 +823,39 @@ function playSound(type) {
                 oscillator.start(ctx.currentTime);
                 oscillator.stop(ctx.currentTime + 0.6);
                 break;
+            // 新增：游戏结束时根据是否战胜期望值播放胜/负提示音（修复设计为 win/lose 但原本未实现）
+            case 'win':
+                oscillator.type = 'triangle';
+                oscillator.frequency.setValueAtTime(523, ctx.currentTime);          // C5
+                oscillator.frequency.setValueAtTime(659, ctx.currentTime + 0.12);   // E5
+                oscillator.frequency.setValueAtTime(784, ctx.currentTime + 0.24);   // G5
+                oscillator.frequency.setValueAtTime(1047, ctx.currentTime + 0.36);  // C6
+                gain.gain.setValueAtTime(0.12, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.7);
+                oscillator.start(ctx.currentTime);
+                oscillator.stop(ctx.currentTime + 0.7);
+                break;
+            case 'lose':
+                oscillator.type = 'sawtooth';
+                oscillator.frequency.setValueAtTime(392, ctx.currentTime);          // G4
+                oscillator.frequency.exponentialRampToValueAtTime(196, ctx.currentTime + 0.5); // 下行到 G3
+                gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6);
+                oscillator.start(ctx.currentTime);
+                oscillator.stop(ctx.currentTime + 0.6);
+                break;
+            default:
+                console.warn('[audio] 未知音效类型:', type);
+                return;
         }
+
+        // 播放结束后释放节点，避免长期运行后节点堆积
+        oscillator.onended = () => {
+            try { oscillator.disconnect(); gain.disconnect(); } catch (e) { /* noop */ }
+        };
     } catch (e) {
-        // 忽略音频错误（用户可能未交互、浏览器策略等）
+        // 修复根因 3：不再静默吞掉，至少打印警告，便于排查音频失效
+        console.warn('[audio] playSound 失败:', type, e);
     }
 }
 
