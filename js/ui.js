@@ -527,9 +527,13 @@ function showResult() {
     `;
 
     if (summary.isDeal) {
+        // 还价被银行家接受时，结算标签应为“银行家接受了报价”而非“你接受了报价”
+        const dealLabelKey = summary.decision === 'banker-accepted'
+            ? 'result.bankerAccepted.label'
+            : 'result.deal.label';
         summaryHTML = `
             <div class="result-deal">
-                <span class="result-label">${t('result.deal.label')}</span>
+                <span class="result-label">${t(dealLabelKey)}</span>
                 <span class="result-amount highlight">${formatCurrency(summary.finalWinnings)}</span>
             </div>`;
         detailsHTML = `

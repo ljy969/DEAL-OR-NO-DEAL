@@ -334,7 +334,7 @@ const GameController = {
     /**
      * 处理接受报价
      */
-    async handleDeal() {
+    async handleDeal(haggleAccepted = false) {
         if (!this._canDecide()) return;
         // 捕获对局代次：下面显示结算的延时回调在重开后必须作废（修复 BUG-1）
         const gen = this.generation;
@@ -344,7 +344,12 @@ const GameController = {
         // 决策后一并禁用还价按钮，避免过渡窗内还价被受理（修复 BUG-A）
         UI.setButtonDisabled('btn-haggle', true);
 
-        StateManager.acceptDeal();
+        // 还价被银行家接受时，记作 'banker-accepted'，结算页显示“银行家接受了报价”
+        if (haggleAccepted) {
+            StateManager.acceptHaggle();
+        } else {
+            StateManager.acceptDeal();
+        }
         UI.hideBankerOffer();
 
         // 接受报价后的后续：翻转打开自己的箱子，揭晓里面到底是多少钱
@@ -463,7 +468,7 @@ const GameController = {
             UI.setButtonDisabled('btn-haggle', true);
             // 锁定决策：阻止 900ms 结算窗口内 Esc 等误触再次触发 NO DEAL（修复 Bug B）
             this.decisionLock = true;
-            setTimeout(() => { if (gen === this.generation) { this.decisionLock = false; this.handleDeal(); } }, 900);
+            setTimeout(() => { if (gen === this.generation) { this.decisionLock = false; this.handleDeal(true); } }, 900);
         } else {
             UI.showHaggleResult(t('banker.haggle.rejected', { amount: formatCurrency(originalOffer) }), false);
             // 银行家拒绝还价后，原报价作废，自动强制继续游戏（禁用两按钮并走 NO DEAL 流程，无需玩家点击）

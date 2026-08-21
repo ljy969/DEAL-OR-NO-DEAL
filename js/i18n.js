@@ -67,6 +67,7 @@ const I18N = {
         // 结算弹窗
         'result.title': '游戏结束',
         'result.deal.label': '你接受了报价',
+        'result.bankerAccepted.label': '银行家接受了报价',
         'result.keep.label': '你保留了自己的箱子',
         'result.switch.label': '你交换了箱子',
         'result.playerCaseWas': '你的箱子里其实是：',
@@ -176,6 +177,7 @@ const I18N = {
 
         'result.title': 'Game Over',
         'result.deal.label': 'You Accepted the Deal',
+        'result.bankerAccepted.label': 'The Banker Accepted the Offer',
         'result.keep.label': 'You Kept Your Case',
         'result.switch.label': 'You Switched Cases',
         'result.playerCaseWas': 'Your case actually contained: ',

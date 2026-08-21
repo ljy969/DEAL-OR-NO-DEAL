@@ -59,7 +59,7 @@ const state = {
     // 最后剩下的另一个箱子金额
     otherCaseValue: null,
 
-    // 玩家最终决定：'deal' | 'no-deal' | 'switch' | 'keep'
+    // 玩家最终决定：'deal' | 'banker-accepted' | 'no-deal' | 'switch' | 'keep'
     finalDecision: null,
 
     // 玩家最终获得金额
@@ -286,6 +286,21 @@ const StateManager = {
     },
 
     /**
+     * 银行家接受玩家的还价（讨价还价成交）。
+     * 与 acceptDeal 的区别：最终决定记为 'banker-accepted'，
+     * 结算页据此显示“银行家接受了报价”而非“你接受了报价”（修复还价成交文案）。
+     * 金额取当前报价（还价被接受时已通过 setCurrentOffer 更新为成交价）。
+     */
+    acceptHaggle() {
+        state.finalDecision = 'banker-accepted';
+        state.finalWinnings = state.currentOffer;
+        state.decisionExpectedValue = this.calculateExpectedValue();
+        state.isGameOver = true;
+        state.phase = GAME_PHASE.GAME_OVER;
+        this.updateStats();
+    },
+
+    /**
      * 玩家拒绝报价
      */
     rejectDeal() {
@@ -474,7 +489,7 @@ const StateManager = {
             expectedValue,
             decision: state.finalDecision,
             offerHistory: state.offerHistory,
-            isDeal: state.finalDecision === 'deal',
+            isDeal: state.finalDecision === 'deal' || state.finalDecision === 'banker-accepted',
             beatExpected: state.finalWinnings > expectedValue
         };
     }
