@@ -233,7 +233,10 @@ function animateCaseOpen(caseNumber, value) {
  * @param {boolean} hideBanner 是否立即隐藏指示横幅（降级路径隐藏；飞行路径交由 animateBannerOut 平滑离场）
  */
 function preparePlayerCaseDisplay(caseNumber, fillBox, hideBanner) {
-    elements.playerCaseNumber.textContent = caseNumber;
+    // 重新获取玩家箱子编号元素（可能被之前的 innerHTML 替换而失效，修复 Bug #4 相关）
+    const numEl = elements.playerCaseBox.querySelector('.player-case__number')
+               || document.getElementById('player-case-number');
+    if (numEl) numEl.textContent = caseNumber;
     elements.playerCaseDisplay.hidden = false;
     elements.roundInfo.hidden = false;
     updateRoundInfo();
@@ -373,10 +376,12 @@ function updateRoundInfo() {
         ? t('round.final')
         : t('round.current', { n: roundInfo.round });
     if (isFinal) {
-        // 最终轮进入交换阶段，不再需要“开启 N 个箱子”的提示
+        // 最终轮进入交换阶段，不再需要“开启 N 个箱子”的提示与“已开 x/y”进度
         elements.roundTarget.hidden = true;
+        elements.roundProgress.hidden = true;
     } else {
         elements.roundTarget.hidden = false;
+        elements.roundProgress.hidden = false;
         elements.roundTarget.textContent = t('round.toOpen', { n: roundInfo.boxesToOpen });
     }
     // 进度：使用 innerHTML 保留数字加粗样式（round.progress 内含 <b> 标签）
@@ -389,11 +394,12 @@ function updateRoundInfo() {
 /**
  * 显示银行家报价弹窗
  * @param {number} offer - 报价金额
+ * @param {boolean} isBait - 是否为诱饵报价
  */
-async function showBankerOffer(offer) {
+async function showBankerOffer(offer, isBait = false) {
     const state = StateManager.getState();
     const expectedValue = StateManager.calculateExpectedValue();
-    const commentary = getOfferCommentary(offer, expectedValue);
+    const commentary = getOfferCommentary(offer, expectedValue, isBait);
 
     // 更新金额显示（带动画）
     elements.bankerOfferAmount.textContent = formatCurrency(offer);
@@ -627,17 +633,21 @@ function animatePlayerCaseOpen(value) {
         const valueClass = getValueClass(value);
 
         // 重置为"正面朝前、仅显示编号"的未开启状态（同时带好金额配色类，使背面颜色在翻转中即正确）
-        box.classList.remove('case--opened', 'case--flipping');
+        box.classList.remove('case--opened', 'case--flipping', 'case--low', 'case--high');
         box.classList.add(`case--${valueClass}`);
+
+        // 重建内部翻转结构（含 id 以便缓存引用 elements.playerCaseNumber 保持有效，修复 Bug #4）
         box.innerHTML = `
             <div class="case__inner">
                 <div class="case__front">
-                    <span class="case__number">${num}</span>
+                    <span class="case__number" id="player-case-number">${num}</span>
                 </div>
                 <div class="case__back case--${valueClass}">
                     <span class="case__value">${formatCurrency(value)}</span>
                 </div>
             </div>`;
+        // 重新缓存因 innerHTML 替换而失效的引用
+        elements.playerCaseNumber = document.getElementById('player-case-number');
 
         // 强制重排，确保从正面(rotateY 0)开始过渡，从而触发翻转
         void box.offsetWidth;
@@ -671,8 +681,10 @@ function resetUI() {
 
     // 隐藏轮次信息
     elements.roundInfo.hidden = true;
-    // roundTarget 在新一局会被 updateRoundInfo 按阶段重新设置 hidden，这里先复位为可见
+    // roundTarget / roundProgress 在新一局会被 updateRoundInfo 按阶段重新设置 hidden，
+    // 这里先复位为可见，避免上一局停在最终轮时把进度条隐藏、导致新一局进度不显示
     elements.roundTarget.hidden = false;
+    elements.roundProgress.hidden = false;
 
     // 隐藏所有弹窗
     elements.bankerModal.hidden = true;
@@ -699,6 +711,9 @@ function resetUI() {
     elements.resultDetails.classList.remove('result-modal__details--reveal');
     elements.btnRestart.classList.remove('btn--restart--reveal');
     elements.modalBackdrop.classList.remove('modal-backdrop-enter', 'modal-backdrop-exit');
+
+    // 修复: 重置还价 UI 状态（新游戏开始时复位，避免上一局已用还价导致按钮残留隐藏）
+    updateHaggleUI();
 }
 
 /**
@@ -706,8 +721,8 @@ function resetUI() {
  * @param {string} theme - 'light' | 'dark'
  */
 function updateThemeIcon(theme) {
-    // 通过 CSS[data-theme] 自动处理，这里只需确保属性正确
-    document.documentElement.setAttribute('data-theme', theme);
+    // 仅更新图标；data-theme 属性已在 GameController.applyTheme 中设置，避免重复
+    // 保留此函数供向后兼容
 }
 
 // ========================================
@@ -1027,10 +1042,14 @@ function bindEvents(handlers) {
         const allCases = Array.from(elements.casesGrid.querySelectorAll('.case:not(.case--opened):not(.case--placeholder):not([disabled])'));
         if (allCases.indexOf(currentCase) === -1) return;
 
-        // 列数随响应式布局变化（桌面 13 列、平板/手机 7 列），动态读取避免方向键跳错
-        const cols = elements.casesGrid
-            ? getComputedStyle(elements.casesGrid).gridTemplateColumns.split(' ').length
-            : 13;
+        // 列数随响应式布局变化（桌面 13 列、平板/手机 7 列），基于容器宽度计算避免 repeat() 语法导致解析失败
+        const getGridCols = () => {
+            const width = elements.casesGrid.offsetWidth;
+            if (width < 600) return 7;
+            if (width < 900) return 13;
+            return 13;
+        };
+        const cols = getGridCols();
         const rows = Math.ceil(26 / cols);
         const playerCaseNumber = StateManager.getState().playerCaseNumber;
         // 玩家箱占位格所在视觉索引；无占位（选箱阶段）时为 -1
@@ -1242,7 +1261,8 @@ function updateHaggleUI() {
     }
     if (!used && elements.bankerHaggleInput) {
         const offer = StateManager.getState().currentOffer;
-        elements.bankerHaggleInput.value = Math.round(offer);
+        // 修复: 保底至少 1，输入框有 min="1"，防止报价 < $1 时取整为 0 导致无效值
+        elements.bankerHaggleInput.value = Math.max(1, Math.round(offer));
     }
 }
 

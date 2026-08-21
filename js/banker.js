@@ -8,11 +8,10 @@
 
 /**
  * 计算银行家报价
- * @returns {number} 报价金额（已取整）
+ * @returns {{offer: number, isBait: boolean}} 报价金额（已取整）及是否为诱饵报价
  */
-let _lastBaitApplied = false;
 function calculateBankerOffer() {
-    _lastBaitApplied = false;
+    let isBait = false;
     const state = StateManager.getState();
 
     // 获取剩余金额的期望值
@@ -54,7 +53,7 @@ function calculateBankerOffer() {
         if (Math.random() < baitChance) {
             const baitBonus = randomInRange(BANKER_CONFIG.baitBonus.min, BANKER_CONFIG.baitBonus.max);
             offer *= (1 + baitBonus);
-            _lastBaitApplied = true;
+            isBait = true;
             console.log('[Banker] 诱饵报价触发！额外加成:', (baitBonus * 100).toFixed(1) + '%');
         }
     }
@@ -93,11 +92,13 @@ function calculateBankerOffer() {
         offer = roundOffer(minRemaining);
     }
 
-    // 全低值盘“更慷慨”加成（修复 BUG-4）：前面的钳制会把报价压到 0.95*maxRemaining，
-    // 若在此之前直接 ×(1+10%~20%) 会被该钳制悄悄抵消。故在钳制结果上叠加加成，
-    // 并以上限不超过剩余最大值本身为界，确保善意加成真正生效。
+    // 全低值盘“更慷慨”加成（修复 BUG-4 / BUG-9）：前面的钳制会把报价压到 0.95*maxRemaining，
+    // 若在此基础上 ×(1+10%~20%) 再用 Math.min(maxRemaining, ...) 限死，加成永远吃不满，
+    // 导致全低值盘报价固定 = maxRemaining，失去随机性。现放宽上限至 1.05 * maxRemaining，
+    // 使“善意加成”真正生效，且仍防止报价过度离谱。
     if (highValueCount === 0 && totalRemaining > 0) {
-        offer = Math.min(maxRemaining, roundOffer(offer * (1 + randomInRange(0.10, 0.20))));
+        const generousCap = roundOffer(maxRemaining * 1.05);
+        offer = Math.min(generousCap, roundOffer(offer * (1 + randomInRange(0.10, 0.20))));
     }
 
     console.log(`[Banker] 第${roundNumber}轮报价计算:`, {
@@ -105,10 +106,11 @@ function calculateBankerOffer() {
         basePercent: (basePercent * 100).toFixed(1) + '%',
         volatility: (volatilityDirection * volatility * 100).toFixed(1) + '%',
         consecutiveRejects: state.consecutiveRejects,
-        finalOffer: offer
+        finalOffer: offer,
+        isBait
     });
 
-    return offer;
+    return { offer, isBait };
 }
 
 /**
@@ -149,7 +151,9 @@ function randomInRange(min, max) {
 function roundOffer(amount) {
     if (amount < 1) {
         // 小额（含分）：保留两位小数字段，避免 $0.01 这类金额取整到 $1 时归零
-        return Math.round((amount + Number.EPSILON) * 100) / 100;
+        // 修复: 保底至少 1 分，防止极小金额 (< $0.005) 取整为 $0
+        const rounded = Math.round((amount + Number.EPSILON) * 100) / 100;
+        return Math.max(0.01, rounded);
     }
     if (amount < BANKER_CONFIG.roundingThreshold) {
         return Math.round(amount / BANKER_CONFIG.roundingSmall) * BANKER_CONFIG.roundingSmall;
@@ -180,9 +184,10 @@ async function generateBankerOfferWithDrama() {
  * 获取报价的文本描述（用于剧情展示）
  * @param {number} offer
  * @param {number} expectedValue
+ * @param {boolean} isBait - 是否为诱饵报价
  * @returns {string}
  */
-function getOfferCommentary(offer, expectedValue) {
+function getOfferCommentary(offer, expectedValue, isBait = false) {
     const ratio = offer / expectedValue;
 
     // 评论文案取自 i18n 字典（银行家评论为字符串数组），随语言切换自动适配
@@ -191,11 +196,7 @@ function getOfferCommentary(offer, expectedValue) {
         return pool[Math.floor(Math.random() * pool.length)];
     };
 
-    // 判断是否为诱饵报价
-    const state = StateManager.getState();
-    // 仅当本次报价“真的”触发了诱饵加成时才用诱饵评语，避免言行不一（bug #4）
-    const isBait = _lastBaitApplied;
-
+    // 修复: 直接使用传入的 isBait 参数，避免依赖模块级变量 _lastBaitApplied 导致竞态风险
     if (isBait) {
         return pick('banker.comments.bait');
     }
@@ -221,7 +222,11 @@ function getOfferCommentary(offer, expectedValue) {
 function resolveHaggle(counter, originalOffer, expectedValue) {
     // 银行家心理最高价：围绕期望值波动（不同轮次/局间随机）
     const ceiling = expectedValue * randomInRange(0.85, 1.15);
-    const accepted = counter <= ceiling;
+    // 还价 = 向上协商：必须高于当前报价，且不超过银行家心理上限，才会被接受。
+    // 否则（如还价低于/等于当前报价）银行家不会“降价”，直接拒绝——原报价作废、玩家继续游戏。
+    // 修复：原逻辑 `counter <= ceiling` 允许玩家还价低于当前报价（甚至 $1），
+    // 银行家竟会“接受”该低价，导致玩家以远低于原报价的金额成交（逻辑漏洞）。
+    const accepted = counter > originalOffer && counter <= ceiling;
     return {
         accepted,
         finalOffer: accepted ? Math.round(counter) : originalOffer,

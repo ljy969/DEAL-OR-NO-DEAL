@@ -298,7 +298,7 @@ const GameController = {
         const state = StateManager.getState();
 
         // 计算报价（带戏剧性延迟）
-        const offer = await generateBankerOfferWithDrama();
+        const { offer, isBait } = await generateBankerOfferWithDrama();
         // 若在此期间玩家点了“再来一局”，本轮报价作废，避免作用到新对局
         if (gen !== this.generation) return;
 
@@ -309,8 +309,8 @@ const GameController = {
         UI.setButtonDisabled('btn-deal', false);
         UI.setButtonDisabled('btn-no-deal', false);
 
-        // 显示报价弹窗
-        await UI.showBankerOffer(offer);
+        // 显示报价弹窗（传递 isBait 标记用于正确显示银行家评语）
+        await UI.showBankerOffer(offer, isBait);
 
         // 更新阶段（getState 返回浅拷贝，必须用 StateManager.setPhase 才能真正改写）
         StateManager.setPhase(GAME_PHASE.BANKER_OFFER);
@@ -398,6 +398,8 @@ const GameController = {
             UI.setButtonDisabled('btn-no-deal', false);
             // 下一轮报价将由 updateHaggleUI 按 haggleUsed 重新显隐；此处复位 disabled（修复 BUG-A）
             UI.setButtonDisabled('btn-haggle', false);
+            // 修复: 同步刷新还价 UI 可见/隐藏状态，避免上一轮已用还价导致按钮残留显示
+            UI.updateHaggleUI();
             UI.updateRoundInfo();
             UI.renderCasesGrid(); // 更新箱子状态
             UI.renderMoneyPanels(); // 更新金额面板

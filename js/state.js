@@ -278,6 +278,8 @@ const StateManager = {
     acceptDeal() {
         state.finalDecision = 'deal';
         state.finalWinnings = state.currentOffer;
+        // 捕获决策时刻的期望值（用于统计判定：是否战胜期望值）
+        state.decisionExpectedValue = this.calculateExpectedValue();
         state.isGameOver = true;
         state.phase = GAME_PHASE.GAME_OVER;
         this.updateStats();
@@ -311,6 +313,9 @@ const StateManager = {
     keepCase() {
         state.finalDecision = 'keep';
         state.finalWinnings = state.playerCaseValue;
+        // 捕获决策时刻的期望值（Switch Case 阶段，此时 remainingValues 仅含最后两箱，
+        // 决策时刻的 EV = 两箱平均值，这才是玩家做决策时的真实参考线）
+        state.decisionExpectedValue = this.calculateExpectedValue();
         state.isGameOver = true;
         state.phase = GAME_PHASE.GAME_OVER;
         this.updateStats();
@@ -326,6 +331,8 @@ const StateManager = {
         const temp = state.playerCaseValue;
         state.playerCaseValue = state.otherCaseValue;
         state.otherCaseValue = temp;
+        // 捕获决策时刻的期望值（同上）
+        state.decisionExpectedValue = this.calculateExpectedValue();
         state.isGameOver = true;
         state.phase = GAME_PHASE.GAME_OVER;
         this.updateStats();
@@ -380,11 +387,16 @@ const StateManager = {
         if (state.finalWinnings > state.stats.bestWin) {
             state.stats.bestWin = state.finalWinnings;
         }
-        // 简单判定：获得金额大于期望值算"赢"
-        const expectedValue = this.calculateExpectedValue();
+        // 使用决策时刻捕获的期望值（state.decisionExpectedValue），而非游戏结束时的剩余值
+        // 修复: Keep/Switch 时剩余值仅剩两箱，此时 EV 失去决策参考意义
+        const expectedValue = (state.decisionExpectedValue !== undefined && state.decisionExpectedValue !== null)
+            ? state.decisionExpectedValue
+            : this.calculateExpectedValue();
         if (state.finalWinnings > expectedValue) {
             state.stats.gamesWon++;
         }
+        // 清理临时字段
+        state.decisionExpectedValue = null;
         this.saveStats();
     },
 
